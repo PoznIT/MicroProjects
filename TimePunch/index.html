@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TimePunch</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230b0c0e' width='100' height='100' rx='20'/><circle cx='50' cy='50' r='35' fill='none' stroke='%2300e5a0' stroke-width='6'/><line x1='50' y1='50' x2='50' y2='25' stroke='%2300e5a0' stroke-width='6' stroke-linecap='round'/><line x1='50' y1='50' x2='68' y2='50' stroke='%2300e5a0' stroke-width='6' stroke-linecap='round'/></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ── TOP BAR ── -->
+<header class="topbar">
+  <div class="logo">Time<span>Punch</span></div>
+  <div class="topbar-right">
+    <span class="badge" id="month-badge"></span>
+    <button class="btn btn-ghost" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
+    <button class="btn btn-ghost" onclick="triggerImport()">↑ Import CSV</button>
+    <button class="btn btn-ghost" onclick="exportCSV()">↓ Export CSV</button>
+    <button class="btn btn-primary" onclick="openAddDay()">+ Add Day</button>
+  </div>
+</header>
+
+<!-- ── STATS BAR ── -->
+<div class="stats">
+  <div class="stat neutral" id="stat-month">
+    <div class="stat-label">Month Worked</div>
+    <div class="stat-val" id="val-month">—</div>
+    <div class="stat-sub" id="sub-month">hours logged</div>
+  </div>
+  <div class="stat" id="stat-week">
+    <div class="stat-label">This Week</div>
+    <div class="stat-val" id="val-week">—</div>
+    <div class="stat-sub" id="sub-week">of 42h target</div>
+  </div>
+  <div class="stat" id="stat-delta">
+    <div class="stat-label">Week Delta</div>
+    <div class="stat-val" id="val-delta">—</div>
+    <div class="stat-sub" id="sub-delta">vs 42h/week</div>
+  </div>
+  <div class="stat" id="stat-today">
+    <div class="stat-label">Today</div>
+    <div class="stat-val" id="val-today">—</div>
+    <div class="stat-sub" id="sub-today">of 8.4h expected</div>
+  </div>
+  <div class="stat" id="stat-balance">
+    <div class="stat-label">Overall Balance</div>
+    <div class="stat-val" id="val-balance">—</div>
+    <div class="stat-sub" id="sub-balance">cumulative</div>
+  </div>
+</div>
+
+<!-- ── MAIN CONTENT ── -->
+<main class="main">
+  <div id="weeks-container"></div>
+</main>
+
+<!-- ── TIME PICKER MODAL ── -->
+<div class="overlay" id="time-modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Add Punch</div>
+    <div class="modal-sub" id="modal-sub">Select time</div>
+    <div class="time-display">
+      <div class="time-col">
+        <div class="time-arrow" onclick="adjustTime('h', 1)">▲</div>
+        <div class="time-val" id="t-hour">08</div>
+        <div class="time-arrow" onclick="adjustTime('h', -1)">▼</div>
+      </div>
+      <div class="time-sep">:</div>
+      <div class="time-col">
+        <div class="time-arrow" onclick="adjustTime('m', 1)">▲</div>
+        <div class="time-val" id="t-min">00</div>
+        <div class="time-arrow" onclick="adjustTime('m', -1)">▼</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmTime()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── IMPORT CSV MODAL ── -->
+<div class="overlay" id="import-modal">
+  <div class="modal" style="width:400px">
+    <div class="modal-title">Import CSV</div>
+    <div class="modal-sub" id="import-modal-sub">Choose how to handle existing data</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:12px;border-radius:6px;border:1px solid var(--border);background:var(--s2)">
+        <input type="radio" name="import-mode" value="merge" checked style="margin-top:2px">
+        <div>
+          <div style="font-family:var(--sans);font-weight:600;font-size:13px;color:var(--text)">Merge</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:2px;font-family:var(--sans)">Add new days; overwrite existing dates with CSV data</div>
+        </div>
+      </label>
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:12px;border-radius:6px;border:1px solid var(--border);background:var(--s2)">
+        <input type="radio" name="import-mode" value="replace">
+        <div>
+          <div style="font-family:var(--sans);font-weight:600;font-size:13px;color:var(--text)">Replace all</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:2px;font-family:var(--sans)">Discard all current data and load only the CSV</div>
+        </div>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeImportModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmImport()">Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADD DAY MODAL ── -->
+<div class="overlay" id="day-modal">
+  <div class="modal">
+    <div class="modal-title">New Day</div>
+    <div class="modal-sub">Add a new day to track</div>
+    <div class="date-input-wrap">
+      <div class="date-input-label">DATE</div>
+      <input class="date-input" type="date" id="new-day-input">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeDayModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmAddDay()">Add Day</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── HIDDEN FILE INPUT ── -->
+<input type="file" id="csv-import-input" accept=".csv" style="display:none" onchange="importCSV(event)">
+
+<!-- ── TOAST ── -->
+<div class="toast" id="toast"></div>
+
+<!-- ── SCRIPTS ── -->
+<script src="js/utils.js"></script>
+<script src="js/data.js"></script>
+<script src="js/render.js"></script>
+<script src="js/modal.js"></script>
+<script src="js/csv.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
