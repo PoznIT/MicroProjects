@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TimePunch</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0b0c0e;
+    --s1:       #13151a;
+    --s2:       #1a1d24;
+    --s3:       #22262f;
+    --border:   #2c3040;
+    --accent:   #00e5a0;
+    --accent2:  #00c47a;
+    --red:      #ff5f5f;
+    --blue:     #5b9cf6;
+    --text:     #e2e8f0;
+    --dim:      #7a8599;
+    --dim2:     #4a5268;
+    --mono:     'IBM Plex Mono', monospace;
+    --sans:     'IBM Plex Sans', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    min-height: 100vh;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(11,12,14,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    font-family: var(--sans);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--text);
+  }
+  .logo span { color: var(--accent); }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .badge {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    background: var(--s1);
+    letter-spacing: 0.3px;
+    font-family: var(--sans);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.15s;
+    letter-spacing: 0.2px;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+  .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+  .btn-ghost {
+    background: var(--s2);
+    color: var(--dim);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: var(--s3); color: var(--text); }
+
+  /* ── STATS BAR ── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .stat {
+    background: var(--s1);
+    padding: 18px 24px;
+    position: relative;
+  }
+  .stat::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--border);
+    transition: background 0.3s;
+  }
+  .stat.positive::after { background: var(--accent); }
+  .stat.negative::after { background: var(--red); }
+  .stat.neutral::after  { background: var(--blue); }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    font-family: var(--sans);
+    font-weight: 600;
+  }
+  .stat-val {
+    font-family: var(--sans);
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text);
+    transition: color 0.3s;
+  }
+  .stat.positive .stat-val { color: var(--accent); }
+  .stat.negative .stat-val { color: var(--red); }
+  .stat.neutral  .stat-val { color: var(--blue); }
+  .stat-sub {
+    font-size: 11px;
+    color: var(--dim2);
+    margin-top: 5px;
+    font-family: var(--sans);
+  }
+
+  /* ── MAIN TABLE ── */
+  .main {
+    padding: 24px 28px 80px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-size: 11px;
+    color: var(--dim2);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding-left: 2px;
+    font-family: var(--sans);
+    font-weight: 600;
+  }
+
+  .table-wrap {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    background: var(--bg);
+    color: var(--dim);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 10px 12px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    font-family: var(--sans);
+  }
+  thead th:first-child { text-align: left; padding-left: 16px; }
+  thead th:last-child  { text-align: right; padding-right: 16px; }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:nth-child(even) { background: var(--s1); }
+  tbody tr:nth-child(odd)  { background: var(--s2); }
+  tbody tr:hover { background: var(--s3); }
+
+  tbody tr.day-off { opacity: 0.45; }
+  tbody tr.week-row {
+    background: #0f1828 !important;
+    border-top: 1px solid #1e3a5f;
+    border-bottom: 1px solid #1e3a5f;
+  }
+
+  td {
+    padding: 9px 12px;
+    text-align: center;
+    vertical-align: middle;
+  }
+  td:first-child { text-align: left; padding-left: 16px; }
+  td:last-child  { text-align: right; padding-right: 16px; }
+
+  .date-cell {
+    font-weight: 500;
+    color: var(--dim);
+    font-size: 12px;
+    white-space: nowrap;
+    font-family: var(--mono);
+  }
+  .date-cell .weekday {
+    font-size: 10px;
+    color: var(--dim2);
+    margin-left: 6px;
+    font-family: var(--sans);
+  }
+
+  /* Punch chips */
+  .punches {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .punch-chip {
+    background: var(--s3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 12px;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--mono);
+  }
+  .punch-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .punch-chip.in-punch  { border-color: #2d5a3d; color: #6ee7a0; background: #0d1f15; }
+  .punch-chip.out-punch { border-color: #4a3a1a; color: #fbbf5a; background: #1a1408; }
+
+  .punch-arrow {
+    color: var(--dim2);
+    font-size: 10px;
+    margin: 0 1px;
+  }
+
+  .add-punch-btn {
+    background: transparent;
+    border: 1px dashed var(--dim2);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    color: var(--dim2);
+    cursor: pointer;
+    font-family: var(--sans);
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .add-punch-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,229,160,0.05);
+  }
+
+  /* Hours cells */
+  .hours-cell {
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--dim);
+    font-family: var(--mono);
+  }
+  .hours-cell.has-value { color: var(--text); }
+
+  .delta-cell {
+    font-weight: 600;
+    font-size: 13px;
+    font-family: var(--mono);
+  }
+  .delta-cell.pos  { color: var(--accent); }
+  .delta-cell.neg  { color: var(--red); }
+  .delta-cell.zero { color: var(--dim); }
+
+  /* Progress bar */
+  .prog-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .prog-bar {
+    width: 48px;
+    height: 3px;
+    background: var(--s3);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .prog-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--accent);
+    transition: width 0.3s;
+  }
+  .prog-fill.over { background: var(--blue); }
+
+  /* Week summary row */
+  .week-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--blue);
+    letter-spacing: 0.3px;
+    font-family: var(--sans);
+  }
+  .week-total {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--blue);
+    font-family: var(--mono);
+  }
+  .week-delta { font-weight: 600; font-size: 13px; font-family: var(--mono); }
+  .week-delta.pos { color: var(--accent); }
+  .week-delta.neg { color: var(--red); }
+
+  /* Delete button */
+  .del-btn {
+    background: none;
+    border: none;
+    color: var(--dim2);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: all 0.15s;
+    font-family: var(--sans);
+    line-height: 1;
+  }
+  .del-btn:hover { color: var(--red); background: rgba(255,95,95,0.1); }
+
+
+  /* Day off toggle button */
+  .dayoff-btn {
+    background: none;
+    border: 1px solid var(--dim2);
+    color: var(--dim2);
+    cursor: pointer;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    transition: all 0.15s;
+    font-family: var(--sans);
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+  }
+  .dayoff-btn:hover { border-color: var(--blue); color: var(--blue); background: rgba(91,156,246,0.07); }
+  .dayoff-btn.is-off { border-color: var(--blue); color: var(--blue); background: rgba(91,156,246,0.10); }
+
+  /* ── TIME PICKER MODAL ── */
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .overlay.open { display: flex; }
+
+  .modal {
+    background: var(--s1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    width: 320px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+    animation: modalIn 0.18s ease;
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95) translateY(8px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .modal-title {
+    font-family: var(--sans);
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: var(--text);
+  }
+  .modal-sub {
+    font-size: 12px;
+    color: var(--dim);
+    margin-bottom: 20px;
+    font-family: var(--sans);
+  }
+
+  .time-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+  .time-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .time-val {
+    font-family: var(--mono);
+    font-size: 44px;
+    font-weight: 600;
+    color: var(--accent);
+    width: 80px;
+    text-align: center;
+    background: var(--s2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 0;
+    cursor: default;
+    user-select: none;
+    line-height: 1;
+  }
+  .time-sep {
+    font-family: var(--mono);
+    font-size: 38px;
+    font-weight: 600;
+    color: var(--dim2);
+    padding-bottom: 4px;
+  }
+  .time-arrow {
+    background: var(--s2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    width: 80px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--dim);
+    font-size: 13px;
+    transition: all 0.12s;
+    user-select: none;
+  }
+  .time-arrow:hover { background: var(--s3); color: var(--accent); border-color: var(--accent); }
+  .time-arrow:active { transform: scale(0.95); }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .modal-actions .btn { flex: 1; justify-content: center; }
+
+  /* ── ADD DAY MODAL ── */
+  .date-input-wrap { margin-bottom: 20px; }
+  .date-input-label {
+    font-size: 11px;
+    color: var(--dim);
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+    font-family: var(--sans);
+    font-weight: 600;
+  }
+  .date-input {
+    width: 100%;
+    background: var(--s2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .date-input:focus { border-color: var(--accent); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--s2);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0;
+    transition: all 0.25s;
+    pointer-events: none;
+    z-index: 999;
+    white-space: nowrap;
+    font-family: var(--sans);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">Time<span>Punch</span></div>
+  <div class="topbar-right">
+    <span class="badge" id="month-badge">March 2026</span>
+    <button class="btn btn-ghost" onclick="exportCSV()">↓ Export CSV</button>
+    <button class="btn btn-primary" onclick="openAddDay()">+ Add Day</button>
+  </div>
+</div>
+
+<!-- 5 stats now: month, week, week delta, today, overall balance -->
+<div class="stats">
+  <div class="stat neutral" id="stat-month">
+    <div class="stat-label">Month Worked</div>
+    <div class="stat-val" id="val-month">—</div>
+    <div class="stat-sub" id="sub-month">hours logged</div>
+  </div>
+  <div class="stat" id="stat-week">
+    <div class="stat-label">This Week</div>
+    <div class="stat-val" id="val-week">—</div>
+    <div class="stat-sub" id="sub-week">of 42h target</div>
+  </div>
+  <div class="stat" id="stat-delta">
+    <div class="stat-label">Week Delta</div>
+    <div class="stat-val" id="val-delta">—</div>
+    <div class="stat-sub" id="sub-delta">vs 42h/week</div>
+  </div>
+  <div class="stat" id="stat-today">
+    <div class="stat-label">Today</div>
+    <div class="stat-val" id="val-today">—</div>
+    <div class="stat-sub" id="sub-today">of 8.4h expected</div>
+  </div>
+  <div class="stat" id="stat-balance">
+    <div class="stat-label">Overall Balance</div>
+    <div class="stat-val" id="val-balance">—</div>
+    <div class="stat-sub" id="sub-balance">cumulative</div>
+  </div>
+</div>
+
+<div class="main">
+  <div id="weeks-container"></div>
+</div>
+
+<!-- Time picker modal -->
+<div class="overlay" id="time-modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Add Punch</div>
+    <div class="modal-sub" id="modal-sub">Select time</div>
+    <div class="time-display">
+      <div class="time-col">
+        <div class="time-arrow" onclick="adjustTime('h',1)">▲</div>
+        <div class="time-val" id="t-hour">08</div>
+        <div class="time-arrow" onclick="adjustTime('h',-1)">▼</div>
+      </div>
+      <div class="time-sep">:</div>
+      <div class="time-col">
+        <div class="time-arrow" onclick="adjustTime('m',1)">▲</div>
+        <div class="time-val" id="t-min">00</div>
+        <div class="time-arrow" onclick="adjustTime('m',-1)">▼</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmTime()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Day modal -->
+<div class="overlay" id="day-modal">
+  <div class="modal">
+    <div class="modal-title">New Day</div>
+    <div class="modal-sub" id="day-modal-sub">Add a new day to track</div>
+    <div class="date-input-wrap">
+      <div class="date-input-label">DATE</div>
+      <input class="date-input" type="date" id="new-day-input">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeDayModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmAddDay()">Add Day</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const WEEK_TARGET = 42;
+const DAY_TARGET  = WEEK_TARGET / 5;
+
+let days = JSON.parse(localStorage.getItem('timepunch_days') || 'null') || [
+  { date: '2026-03-02', punches: ['09:30','12:10','13:00','16:22','17:05','18:30'] },
+  { date: '2026-03-03', punches: ['08:45','12:10','12:45','17:30'] },
+  { date: '2026-03-04', punches: ['06:30','08:00','09:00','12:00','12:50','17:00'] },
+  { date: '2026-03-05', punches: ['08:00','12:00','12:30','16:30'] },
+  { date: '2026-03-06', punches: ['08:00','12:00','12:45','17:30'] },
+  { date: '2026-03-07', punches: [] },
+  { date: '2026-03-08', punches: [] },
+  { date: '2026-03-09', punches: ['08:00','12:00','12:30','17:00'] },
+  { date: '2026-03-10', punches: ['06:30','08:25'] },
+];
+
+function save() { localStorage.setItem('timepunch_days', JSON.stringify(days)); }
+
+function timeToH(t) {
+  const [h, m] = t.split(':').map(Number);
+  return h + m / 60;
+}
+
+function workedHours(punches) {
+  let total = 0;
+  for (let i = 0; i + 1 < punches.length; i += 2)
+    total += timeToH(punches[i+1]) - timeToH(punches[i]);
+  return total;
+}
+
+function fmtH(h, signed = false) {
+  if (h === 0 && !signed) return '—';
+  const sign = signed ? (h >= 0 ? '+' : '-') : '';
+  const abs  = Math.abs(h);
+  const hh   = Math.floor(abs);
+  const mm   = Math.round((abs - hh) * 60);
+  return `${sign}${hh}h${mm > 0 ? String(mm).padStart(2,'0') : ''}`;
+}
+
+function isoWeek(dateStr) {
+  const d = new Date(dateStr);
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+function weekKey(dateStr) {
+  const d   = new Date(dateStr);
+  const day = d.getDay() || 7;
+  const mon = new Date(d); mon.setDate(d.getDate() - day + 1);
+  return mon.toISOString().slice(0, 10);
+}
+
+function weekLabel(wk) {
+  const mon = new Date(wk);
+  const sun = new Date(wk); sun.setDate(sun.getDate() + 6);
+  const fmt = d => `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`;
+  return `W${isoWeek(wk)}  ${fmt(mon)} – ${fmt(sun)}`;
+}
+
+const WEEKDAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+// Cumulative balance up to a given day index
+function balanceUpTo(dayIndex) {
+  let bal = 0;
+  for (let i = 0; i <= dayIndex; i++) {
+    const d = days[i];
+    if (d.punches.length === 0) continue;
+    bal += workedHours(d.punches) - DAY_TARGET;
+  }
+  return bal;
+}
+
+function render() {
+  const weekMap = {};
+  days.forEach(d => {
+    const wk = weekKey(d.date);
+    if (!weekMap[wk]) weekMap[wk] = [];
+    weekMap[wk].push(d);
+  });
+
+  const container = document.getElementById('weeks-container');
+  container.innerHTML = '';
+
+  const sortedWeeks = Object.keys(weekMap).sort();
+
+  sortedWeeks.forEach(wk => {
+    const wDays   = weekMap[wk];
+    const wWorked = wDays.reduce((s, d) => s + workedHours(d.punches), 0);
+    const wDelta  = wWorked - WEEK_TARGET;
+    const partial = wDays.length < 5;
+
+    const section = document.createElement('div');
+    section.style.marginBottom = '24px';
+
+    const label = document.createElement('div');
+    label.className = 'section-label';
+    label.textContent = weekLabel(wk) + (partial ? ' · in progress' : '');
+    section.appendChild(label);
+
+    const wrap = document.createElement('div');
+    wrap.className = 'table-wrap';
+
+    const table = document.createElement('table');
+    table.innerHTML = `<thead><tr>
+      <th>Date</th>
+      <th>Punches</th>
+      <th>Worked</th>
+      <th>Expected</th>
+      <th>Day Δ</th>
+      <th>Balance</th>
+      <th></th>
+    </tr></thead>`;
+
+    const tbody = document.createElement('tbody');
+
+    wDays.forEach(d => {
+      const dayIdx  = days.indexOf(d);
+      const worked  = workedHours(d.punches);
+      const dayOff  = d.dayOff === true || d.punches.length === 0;
+      const exp     = dayOff ? 0 : DAY_TARGET;
+      const delta   = worked - exp;
+      const balance = balanceUpTo(dayIdx);
+      const pct     = Math.min(worked / DAY_TARGET, 1.2);
+      const isToday = d.date === new Date().toISOString().slice(0,10);
+
+      const tr = document.createElement('tr');
+      if (dayOff) tr.classList.add('day-off');
+
+      const dateObj = new Date(d.date);
+      const dd = String(dateObj.getDate()).padStart(2,'0');
+      const mm = String(dateObj.getMonth()+1).padStart(2,'0');
+      const wd = WEEKDAYS[dateObj.getDay()];
+
+      let punchHTML = '<div class="punches">';
+      d.punches.forEach((p, i) => {
+        if (i > 0 && i % 2 === 0) punchHTML += '<span class="punch-arrow">·</span>';
+        const cls = i % 2 === 0 ? 'in-punch' : 'out-punch';
+        punchHTML += `<span class="punch-chip-wrap" style="display:inline-flex;align-items:center;gap:2px">` +
+          `<span class="punch-chip ${cls}" onclick="editPunch('${d.date}',${i})" title="Click to edit">${p}</span>` +
+          `<span class="del-punch-btn" onclick="deletePunch('${d.date}',${i})" title="Delete punch" style="cursor:pointer;color:var(--dim2);font-size:11px;padding:1px 3px;border-radius:3px;line-height:1;transition:all 0.15s" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--dim2)'">×</span>` +
+          `</span>`;
+      });
+      if (!d.dayOff) punchHTML += `<button class="add-punch-btn" onclick="openAddPunch('${d.date}')">+ punch</button>`;
+      punchHTML += '</div>';
+
+      const workedHTML = dayOff ? '<span class="hours-cell">day off</span>' :
+        `<div class="prog-wrap">
+          <span class="hours-cell ${worked > 0 ? 'has-value' : ''}">${worked > 0 ? fmtH(worked) : '—'}</span>
+          ${worked > 0 ? `<div class="prog-bar"><div class="prog-fill ${pct >= 1 ? 'over' : ''}" style="width:${pct*100}%"></div></div>` : ''}
+        </div>`;
+
+      let deltaClass = 'zero', deltaText = '—';
+      if (!dayOff && worked > 0) {
+        deltaClass = delta >= 0 ? 'pos' : 'neg';
+        deltaText  = fmtH(delta, true);
+      } else if (!dayOff) {
+        deltaClass = 'neg';
+        deltaText  = fmtH(-exp, true);
+      }
+
+      // Balance cell — only show on workdays
+      const balClass = balance >= 0 ? 'pos' : 'neg';
+      const balHTML  = dayOff
+        ? '<span class="delta-cell zero">—</span>'
+        : `<span class="delta-cell ${balClass}">${fmtH(balance, true)}</span>`;
+
+      tr.innerHTML = `
+        <td><span class="date-cell">${dd}.${mm}<span class="weekday">${wd}</span>${isToday ? ' <span style="color:var(--accent);font-size:9px">●</span>' : ''}</span></td>
+        <td>${punchHTML}</td>
+        <td>${workedHTML}</td>
+        <td><span class="hours-cell ${!dayOff ? 'has-value' : ''}">${dayOff ? '—' : fmtH(exp)}</span></td>
+        <td><span class="delta-cell ${deltaClass}">${deltaText}</span></td>
+        <td>${balHTML}</td>
+        <td style="white-space:nowrap">
+          <button class="dayoff-btn ${dayOff && d.punches.length === 0 ? 'is-off' : ''}" onclick="toggleDayOff('${d.date}')" title="Toggle day off">${d.dayOff ? 'work day' : 'day off'}</button>
+          <button class="del-btn" onclick="deleteDay('${d.date}')" title="Delete day">×</button>
+        </td>\`;
+
+      tbody.appendChild(tr);
+    });
+
+    // Week summary row
+    const wtr = document.createElement('tr');
+    wtr.classList.add('week-row');
+    // Balance at end of this week = balance at last day of week
+    const lastDayOfWk = wDays[wDays.length - 1];
+    const wkBalance   = balanceUpTo(days.indexOf(lastDayOfWk));
+    const wDeltaClass = wDelta >= 0 ? 'pos' : 'neg';
+    const wBalClass   = wkBalance >= 0 ? 'pos' : 'neg';
+    wtr.innerHTML = `
+      <td><span class="week-label">${weekLabel(wk)}</span></td>
+      <td></td>
+      <td><span class="week-total">${fmtH(wWorked)}</span></td>
+      <td><span class="hours-cell has-value" style="color:var(--blue)">${WEEK_TARGET}h</span></td>
+      <td><span class="week-delta ${wDeltaClass}">${fmtH(wDelta, true)}</span></td>
+      <td><span class="week-delta ${wBalClass}">${fmtH(wkBalance, true)}</span></td>
+      <td></td>`;
+    tbody.appendChild(wtr);
+
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    section.appendChild(wrap);
+    container.appendChild(section);
+  });
+
+  updateStats();
+}
+
+function updateStats() {
+  // Month total
+  const monthWorked = days.reduce((s, d) => s + workedHours(d.punches), 0);
+  document.getElementById('val-month').textContent = fmtH(monthWorked);
+  document.getElementById('sub-month').textContent = `${monthWorked.toFixed(1)}h logged`;
+
+  // Current week
+  const now    = new Date().toISOString().slice(0,10);
+  const curWk  = weekKey(now);
+  const wkDays = days.filter(d => weekKey(d.date) === curWk);
+  const wkWorked = wkDays.reduce((s, d) => s + workedHours(d.punches), 0);
+  const wkDelta  = wkWorked - WEEK_TARGET;
+
+  document.getElementById('val-week').textContent = fmtH(wkWorked);
+  document.getElementById('sub-week').textContent = `${wkWorked.toFixed(1)} / ${WEEK_TARGET}h`;
+  document.getElementById('stat-week').className = 'stat ' + (wkWorked >= WEEK_TARGET ? 'positive' : 'neutral');
+
+  document.getElementById('val-delta').textContent = fmtH(wkDelta, true);
+  document.getElementById('sub-delta').textContent = wkDelta >= 0 ? 'ahead of target' : 'behind target';
+  document.getElementById('stat-delta').className = 'stat ' + (wkDelta >= 0 ? 'positive' : 'negative');
+
+  // Today
+  const todayDay = days.find(d => d.date === now);
+  if (todayDay) {
+    const tw = workedHours(todayDay.punches);
+    const td = tw - DAY_TARGET;
+    document.getElementById('val-today').textContent = fmtH(tw) || '0h';
+    document.getElementById('sub-today').textContent = `${fmtH(td, true)} vs ${fmtH(DAY_TARGET)} target`;
+    document.getElementById('stat-today').className = 'stat ' + (td >= 0 ? 'positive' : 'negative');
+  } else {
+    document.getElementById('val-today').textContent = '—';
+    document.getElementById('sub-today').textContent = 'no entry today';
+    document.getElementById('stat-today').className = 'stat neutral';
+  }
+
+  // Overall balance — cumulative delta across ALL days
+  const overallBalance = balanceUpTo(days.length - 1);
+  document.getElementById('val-balance').textContent = fmtH(overallBalance, true);
+  document.getElementById('sub-balance').textContent = overallBalance >= 0 ? 'ahead overall' : 'behind overall';
+  document.getElementById('stat-balance').className = 'stat ' + (overallBalance >= 0 ? 'positive' : 'negative');
+}
+
+// ── MODAL ─────────────────────────────────────────────────────
+let modalState = { date: null, idx: null, hour: 8, min: 0 };
+
+function openAddPunch(date) {
+  const d   = days.find(x => x.date === date);
+  const idx = d.punches.length;
+  let h = new Date().getHours(), m = Math.floor(new Date().getMinutes() / 5) * 5;
+  if (d.punches.length > 0) {
+    const last = timeToH(d.punches[d.punches.length - 1]);
+    h = Math.floor(last + 0.5); m = 0;
+  }
+  modalState = { date, idx, hour: h % 24, min: m };
+  document.getElementById('modal-title').textContent = idx % 2 === 0 ? 'Punch In' : 'Punch Out';
+  const dd = date.slice(8), mm = date.slice(5,7);
+  document.getElementById('modal-sub').textContent = `${dd}.${mm} · punch ${idx + 1}`;
+  setTimeDisplay();
+  document.getElementById('time-modal').classList.add('open');
+}
+
+function editPunch(date, idx) {
+  const d = days.find(x => x.date === date);
+  const [h, m] = d.punches[idx].split(':').map(Number);
+  modalState = { date, idx, hour: h, min: m, editing: true };
+  document.getElementById('modal-title').textContent = idx % 2 === 0 ? 'Edit Punch In' : 'Edit Punch Out';
+  const dd = date.slice(8), mm2 = date.slice(5,7);
+  document.getElementById('modal-sub').textContent = `${dd}.${mm2} · punch ${idx + 1}`;
+  setTimeDisplay();
+  document.getElementById('time-modal').classList.add('open');
+}
+
+function setTimeDisplay() {
+  document.getElementById('t-hour').textContent = String(modalState.hour).padStart(2,'0');
+  document.getElementById('t-min').textContent  = String(modalState.min).padStart(2,'0');
+}
+
+function adjustTime(part, delta) {
+  if (part === 'h') modalState.hour = (modalState.hour + delta + 24) % 24;
+  else              modalState.min  = (modalState.min + delta * 5 + 60) % 60;
+  setTimeDisplay();
+}
+
+function confirmTime() {
+  const { date, idx, hour, min, editing } = modalState;
+  const timeStr = `${String(hour).padStart(2,'0')}:${String(min).padStart(2,'0')}`;
+  const d = days.find(x => x.date === date);
+  if (editing) d.punches[idx] = timeStr;
+  else         d.punches.push(timeStr);
+  save(); closeModal(); render();
+  toast(`Punch ${editing ? 'updated' : 'added'}: ${timeStr}`);
+}
+
+function closeModal() { document.getElementById('time-modal').classList.remove('open'); }
+
+function openAddDay() {
+  const lastDate = days.length ? days[days.length - 1].date : new Date().toISOString().slice(0,10);
+  const next = new Date(lastDate); next.setDate(next.getDate() + 1);
+  document.getElementById('new-day-input').value = next.toISOString().slice(0,10);
+  document.getElementById('day-modal').classList.add('open');
+}
+
+function closeDayModal() { document.getElementById('day-modal').classList.remove('open'); }
+
+function confirmAddDay() {
+  const val = document.getElementById('new-day-input').value;
+  if (!val) return;
+  if (days.find(d => d.date === val)) { toast('Date already exists!'); return; }
+  days.push({ date: val, punches: [] });
+  days.sort((a,b) => a.date.localeCompare(b.date));
+  save(); closeDayModal(); render();
+  toast('Day added');
+}
+
+function deleteDay(date) {
+  if (!confirm(`Delete ${date.slice(8)}.${date.slice(5,7)}.${date.slice(0,4)}?`)) return;
+  days = days.filter(d => d.date !== date);
+  save(); render(); toast('Day removed');
+}
+
+function toggleDayOff(date) {
+  const d = days.find(x => x.date === date);
+  if (d.dayOff) {
+    delete d.dayOff;
+    toast('Marked as work day');
+  } else {
+    d.dayOff = true;
+    d.punches = [];
+    toast('Marked as day off');
+  }
+  save(); render();
+}
+
+function deletePunch(date, idx) {
+  const d = days.find(x => x.date === date);
+  d.punches.splice(idx, 1);
+  save(); render(); toast('Punch removed');
+}
+
+function exportCSV() {
+  const maxP = Math.max(...days.map(d => d.punches.length), 2);
+  const pHeaders = Array.from({length: maxP}, (_,i) => `P${i+1}`).join(',');
+  const lines = [`Date,${pHeaders},Worked_h,Expected_h,Delta_h,Balance_h`];
+  days.forEach((d, i) => {
+    const w   = workedHours(d.punches);
+    const exp = d.punches.length > 0 ? DAY_TARGET : 0;
+    const bal = balanceUpTo(i);
+    const ps  = [...d.punches, ...Array(maxP - d.punches.length).fill('')];
+    lines.push([d.date, ...ps, w.toFixed(2), exp.toFixed(2), (w-exp).toFixed(2), bal.toFixed(2)].join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'timepunch.csv'; a.click();
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeModal(); closeDayModal(); }
+  if (e.key === 'Enter') {
+    if (document.getElementById('time-modal').classList.contains('open')) confirmTime();
+    if (document.getElementById('day-modal').classList.contains('open')) confirmAddDay();
+  }
+});
+
+document.getElementById('time-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+document.getElementById('day-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeDayModal(); });
+
+render();
+</script>
+</body>
+</html>
