@@ -3,6 +3,10 @@ services:
     build: ./auth
     restart: unless-stopped
     env_file: .env
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/verify"]
+      interval: 5s
+      retries: 3
 
   proxy:
     image: nginx:alpine
@@ -10,7 +14,10 @@ services:
       - "8080:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - .:/var/www:ro
+      - ./index.html:/var/www/index.html:ro
+      - ./shared:/var/www/shared:ro
+      - ./TimePunch:/var/www/TimePunch:ro
     depends_on:
-      - auth
+      auth:
+        condition: service_healthy
     restart: unless-stopped
