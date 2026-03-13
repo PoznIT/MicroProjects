@@ -4,7 +4,7 @@ A collection of small, focused utility tools served as a unified Docker stack.
 
 ## Projects
 
-### [TimePunch](TimePunch/)
+### [TimePunch](apps/TimePunch/)
 
 A lightweight time tracking app for logging work hours. Punch in/out interface with CSV import/export and weekly balance tracking.
 
@@ -32,13 +32,16 @@ The stack runs two containers:
 
 ```text
 /
-├── auth/               Node.js auth service (login page, session cookies)
-├── nginx/              nginx config
-├── shared/
-│   ├── theme.css       Design tokens (dark/light), fonts, CSS reset
-│   └── theme.js        Theme toggle — persists via localStorage (key: mp-theme)
-├── TimePunch/          TimePunch app
-├── index.html          Landing page
+├── apps/
+│   └── TimePunch/      TimePunch app
+├── infra/
+│   ├── auth/           Node.js auth service (login page, session cookies)
+│   └── nginx/          nginx config
+├── portal/
+│   ├── index.html      Landing page
+│   └── shared/
+│       ├── theme.css   Design tokens (dark/light), fonts, CSS reset
+│       └── theme.js    Theme toggle — persists via localStorage (key: mp-theme)
 └── docker-compose.yml
 ```
 
@@ -46,7 +49,7 @@ All routes except `/login`, `/logout`, and `/shared/` are protected by an nginx 
 
 ## Adding a new project
 
-1. Create a folder for the app (e.g. `MyApp/`)
+1. Create a folder under `apps/` (e.g. `apps/MyApp/`)
 
 2. Link the shared theme in the app's HTML:
 
@@ -56,21 +59,27 @@ All routes except `/login`, `/logout`, and `/shared/` are protected by an nginx 
    <script>initTheme();</script>
    ```
 
-3. Add a nginx location block in `nginx/nginx.conf`:
+3. Add a nginx location block in `infra/nginx/nginx.conf`:
 
    ```nginx
    location /myapp/ {
        auth_request /verify;
        error_page 401 = @require_login;
-       alias /var/www/MyApp/;
+       alias /var/www/apps/MyApp/;
        index index.html;
        try_files $uri $uri/ index.html;
    }
    ```
 
-4. Add a card to `index.html`
+4. Add a volume mount in `docker-compose.yml`:
 
-5. Restart nginx: `docker compose restart proxy`
+   ```yaml
+   - ./apps/MyApp:/var/www/apps/MyApp:ro
+   ```
+
+5. Add a card to `portal/index.html`
+
+6. Restart: `docker compose restart proxy`
 
 ## License
 

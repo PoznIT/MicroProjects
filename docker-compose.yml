@@ -1,6 +1,6 @@
 services:
   auth:
-    build: ./auth
+    build: ./infra/auth
     restart: unless-stopped
     env_file: .env
     healthcheck:
@@ -13,10 +13,10 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./index.html:/var/www/index.html:ro
-      - ./shared:/var/www/shared:ro
-      - ./TimePunch:/var/www/TimePunch:ro
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./portal/index.html:/var/www/portal/index.html:ro
+      - ./portal/shared:/var/www/portal/shared:ro
+      - ./apps/TimePunch:/var/www/apps/TimePunch:ro
     depends_on:
       auth:
         condition: service_healthy
