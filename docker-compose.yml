@@ -4,9 +4,10 @@ services:
     restart: unless-stopped
     env_file: .env
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/verify"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/login"]
       interval: 5s
       retries: 3
+      start_period: 10s
 
   proxy:
     image: nginx:alpine
