@@ -8,6 +8,14 @@ A collection of small, focused utility tools served as a unified Docker stack.
 
 A lightweight time tracking app for logging work hours. Punch in/out interface with CSV import/export and weekly balance tracking.
 
+### [YTAudio](apps/YTAudio/)
+
+Download the audio track from any YouTube video — best original quality, or converted to MP3 320k / FLAC.
+
+### [ValueScope](apps/ValueScope/)
+
+Enter a stock ticker and get its fundamentals as a color-coded value-investing dashboard with a composite 0–100 score. Data via yfinance (no API key).
+
 ## Running locally
 
 **Prerequisites:** Docker and Docker Compose.

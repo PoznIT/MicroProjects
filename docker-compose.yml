@@ -9,6 +9,24 @@ services:
       retries: 3
       start_period: 10s
 
+  ytaudio:
+    build: ./apps/YTAudio
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/"]
+      interval: 10s
+      retries: 3
+      start_period: 15s
+
+  valuescope:
+    build: ./apps/ValueScope
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      retries: 3
+      start_period: 15s
+
   proxy:
     image: nginx:alpine
     ports:
@@ -20,5 +38,9 @@ services:
       - ./apps/TimePunch:/var/www/apps/TimePunch:ro
     depends_on:
       auth:
+        condition: service_healthy
+      ytaudio:
+        condition: service_healthy
+      valuescope:
         condition: service_healthy
     restart: unless-stopped
