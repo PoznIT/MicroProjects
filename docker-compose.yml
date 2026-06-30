@@ -9,23 +9,28 @@ services:
       retries: 3
       start_period: 10s
 
-  ytaudio:
-    build: ./apps/YTAudio
+  # Unified Python backend (FastAPI) — serves /api/valuescope, /api/ytaudio,
+  # /api/timepunch. Bundles yt-dlp + yfinance.
+  api:
+    build: ./backend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:3000/"]
+      test: ["CMD", "python3", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health').status==200 else 1)"]
       interval: 10s
       retries: 3
       start_period: 15s
 
-  valuescope:
-    build: ./apps/ValueScope
+  # Unified React frontend (Vite build served by nginx).
+  web:
+    build: ./web
     restart: unless-stopped
+    # busybox wget (nginx:alpine) needs flags separated — the combined -qO-
+    # form only works with GNU wget.
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
       interval: 10s
       retries: 3
-      start_period: 15s
+      start_period: 10s
 
   proxy:
     image: nginx:alpine
@@ -33,14 +38,13 @@ services:
       - "8080:80"
     volumes:
       - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./portal/index.html:/var/www/portal/index.html:ro
-      - ./portal/shared:/var/www/portal/shared:ro
-      - ./apps/TimePunch:/var/www/apps/TimePunch:ro
     depends_on:
       auth:
         condition: service_healthy
-      ytaudio:
+      api:
         condition: service_healthy
-      valuescope:
-        condition: service_healthy
+      # web is a static nginx that's ready immediately — start is enough; no
+      # need to gate the proxy on its healthcheck.
+      web:
+        condition: service_started
     restart: unless-stopped

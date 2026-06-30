@@ -419,3 +419,6 @@ FodyWeavers.xsd
 *.msp
 
 .idea/
+# build output
+dist/
+web/dist/
