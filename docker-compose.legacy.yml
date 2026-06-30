@@ -1,0 +1,46 @@
+services:
+  auth:
+    build: ./infra/auth
+    restart: unless-stopped
+    env_file: .env
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/login"]
+      interval: 5s
+      retries: 3
+      start_period: 10s
+
+  ytaudio:
+    build: ./apps/_legacy/YTAudio
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/"]
+      interval: 10s
+      retries: 3
+      start_period: 15s
+
+  valuescope:
+    build: ./apps/_legacy/ValueScope
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      retries: 3
+      start_period: 15s
+
+  proxy:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./infra/nginx/nginx.legacy.conf:/etc/nginx/nginx.conf:ro
+      - ./portal/index.html:/var/www/portal/index.html:ro
+      - ./portal/shared:/var/www/portal/shared:ro
+      - ./apps/_legacy/TimePunch:/var/www/apps/TimePunch:ro
+    depends_on:
+      auth:
+        condition: service_healthy
+      ytaudio:
+        condition: service_healthy
+      valuescope:
+        condition: service_healthy
+    restart: unless-stopped
