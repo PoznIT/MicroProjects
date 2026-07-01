@@ -1,20 +1,14 @@
 # MicroProjects
 
 A collection of small, focused utility tools served as a unified Docker stack.
+As of v2 the tools share **one Python backend** (FastAPI) and **one React
+frontend** (Vite), behind an nginx auth proxy.
 
-## Projects
+## Tools
 
-### [TimePunch](apps/TimePunch/)
-
-A lightweight time tracking app for logging work hours. Punch in/out interface with CSV import/export and weekly balance tracking.
-
-### [YTAudio](apps/YTAudio/)
-
-Download the audio track from any YouTube video — best original quality, or converted to MP3 320k / FLAC.
-
-### [ValueScope](apps/ValueScope/)
-
-Enter a stock ticker and get its fundamentals as a color-coded value-investing dashboard with a composite 0–100 score. Data via yfinance (no API key).
+- **TimePunch** (`/timepunch`) — time tracker: punch in/out, CSV import/export, weekly balance against a 42h target. Fully client-side (browser localStorage).
+- **YTAudio** (`/ytaudio`) — download the audio track from any YouTube video; best original quality or MP3 320k / FLAC. Backed by `yt-dlp`.
+- **ValueScope** (`/valuescope`) — enter a ticker (or search by company name) and get a color-coded value-investing dashboard with a composite 0–100 score. Backed by `yfinance`, no API key.
 
 ## Running locally
 
@@ -31,63 +25,51 @@ docker compose up --build
 # 3. Open http://localhost:8080
 ```
 
-The stack runs two containers:
+### Frontend dev server (optional)
 
-- **proxy** — nginx serving all static files and enforcing auth
-- **auth** — Node.js service handling login/logout and session validation
+```bash
+cd web && npm install && npm run dev   # Vite on :5173, proxies /api → :8000
+# in another shell:
+cd backend && pip install -r requirements.txt && uvicorn app.main:app --reload
+```
 
 ## Architecture
 
 ```text
 /
-├── apps/
-│   └── TimePunch/      TimePunch app
+├── backend/            FastAPI app — one router per tool
+│   ├── app/
+│   │   ├── main.py     mounts routers, uniform {"error": ...} envelope
+│   │   ├── common.py   shared validation, injection guard, subprocess runner
+│   │   ├── routers/    valuescope.py · ytaudio.py · timepunch.py
+│   │   └── tools/      fetch.py · search.py (yfinance, spawned as subprocesses)
+│   └── Dockerfile      python3-slim + yt-dlp + ffmpeg + deno + yfinance
+├── web/                Vite + React SPA
+│   ├── src/
+│   │   ├── App.jsx     router + theme
+│   │   ├── pages/      Home · ValueScope · YTAudio · TimePunch
+│   │   └── styles/     theme.css (dark/light design tokens)
+│   └── Dockerfile      multi-stage: node build → nginx serve (SPA fallback)
 ├── infra/
-│   ├── auth/           Node.js auth service (login page, session cookies)
-│   └── nginx/          nginx config
-├── portal/
-│   ├── index.html      Landing page
-│   └── shared/
-│       ├── theme.css   Design tokens (dark/light), fonts, CSS reset
-│       └── theme.js    Theme toggle — persists via localStorage (key: mp-theme)
-└── docker-compose.yml
+│   ├── auth/           Node.js auth service (login page, HMAC session cookies)
+│   └── nginx/          gateway proxy config
+└── docker-compose.yml  api + web + auth + proxy
 ```
 
-All routes except `/login`, `/logout`, and `/shared/` are protected by an nginx `auth_request` check. Sessions are HMAC-signed cookies valid for 7 days.
+Services: **auth** (sessions), **api** (FastAPI), **web** (React/nginx), **proxy**
+(gateway nginx). All routes except `/login` and `/logout` are protected by an
+nginx `auth_request` check; the proxy routes `/api/*` → api and everything else
+→ the SPA. Sessions are HMAC-signed cookies valid for 7 days.
 
-## Adding a new project
+The unified API lives under `/api/<tool>/…` (e.g. `/api/valuescope/metrics`,
+`/api/ytaudio/download`). TimePunch is client-side; its router only exposes a
+health check.
 
-1. Create a folder under `apps/` (e.g. `apps/MyApp/`)
+## Adding a tool
 
-2. Link the shared theme in the app's HTML:
-
-   ```html
-   <link rel="stylesheet" href="/shared/theme.css">
-   <script src="/shared/theme.js"></script>
-   <script>initTheme();</script>
-   ```
-
-3. Add a nginx location block in `infra/nginx/nginx.conf`:
-
-   ```nginx
-   location /myapp/ {
-       auth_request /verify;
-       error_page 401 = @require_login;
-       alias /var/www/apps/MyApp/;
-       index index.html;
-       try_files $uri $uri/ index.html;
-   }
-   ```
-
-4. Add a volume mount in `docker-compose.yml`:
-
-   ```yaml
-   - ./apps/MyApp:/var/www/apps/MyApp:ro
-   ```
-
-5. Add a card to `portal/index.html`
-
-6. Restart: `docker compose restart proxy`
+1. Add a router under `backend/app/routers/` (prefix `/api/<tool>`) and include it in `main.py`. Reuse `common.py` for validation, the injection guard, error envelopes, and subprocess spawning.
+2. Add a page under `web/src/pages/` and a route in `web/src/App.jsx`, plus a card in `pages/Home.jsx`.
+3. No nginx/compose change needed — `/api/*` and the SPA are already routed.
 
 ## License
 
