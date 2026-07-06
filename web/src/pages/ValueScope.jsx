@@ -1,7 +1,10 @@
-import { useState, useRef, useCallback } from 'react';
-import './ValueScope.css';
+import { useState, useRef } from 'react';
+import {
+  Box, Typography, Paper, TextField, Button, Autocomplete, CircularProgress,
+  Chip, Table, TableBody, TableRow, TableCell, Stack, Alert,
+} from '@mui/material';
 
-// ── Value-investing rubric (ported verbatim from the original app) ──────────
+// ── Value-investing rubric (unchanged) ──────────────────────────────────────
 const GROUPS = [
   { title: 'Valuation', items: [
     { key: 'trailingPE',  label: 'P/E (TTM)',  dir: 'low',  good: 15,   ok: 25,   fmt: 'x', note: 'Price vs. earnings. <15 is classically cheap.' },
@@ -49,7 +52,6 @@ function fmtMoney(n, cur) {
   if (abs >= 1e6)  return sign + (n / 1e6).toFixed(2) + 'M';
   return sign + n.toFixed(2);
 }
-
 function computeScore(metrics) {
   let pts = 0, max = 0;
   GROUPS.forEach(g => g.items.forEach(m => {
@@ -60,104 +62,69 @@ function computeScore(metrics) {
     pts += (r === 'good' ? 2 : r === 'ok' ? 1 : 0);
   }));
   const score = max ? Math.round((pts / max) * 100) : 0;
-  let verdict, color;
-  if (score >= 70)      { verdict = 'Attractive';   color = 'var(--accent)'; }
-  else if (score >= 45) { verdict = 'Mixed';        color = 'var(--blue)'; }
-  else                  { verdict = 'Unattractive'; color = 'var(--red)'; }
-  return { score, verdict, color };
+  if (score >= 70) return { score, verdict: 'Attractive', color: 'success' };
+  if (score >= 45) return { score, verdict: 'Mixed', color: 'info' };
+  return { score, verdict: 'Unattractive', color: 'error' };
 }
 
+// rating → MUI Chip color
+const CHIP_COLOR = { good: 'success', ok: 'info', bad: 'error', na: 'default' };
+
 export default function ValueScope() {
-  const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-  const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const [options, setOptions] = useState([]);
   const [searching, setSearching] = useState(false);
-  const [activeIdx, setActiveIdx] = useState(-1);
-  const [status, setStatus] = useState({ msg: '', cls: '' });
+  const [status, setStatus] = useState(null); // { severity, msg }
   const [analyzing, setAnalyzing] = useState(false);
   const [data, setData] = useState(null);
 
   const seqRef = useRef(0);
   const timerRef = useRef(null);
 
-  const closeSuggest = useCallback(() => {
-    seqRef.current++;          // cancel ownership of any in-flight request
-    setSearching(false);
-    setOpen(false);
-    setActiveIdx(-1);
-  }, []);
-
-  function onInput(v) {
-    setQuery(v);
+  function onInput(value, reason) {
+    setInputValue(value);
+    if (reason !== 'input') return;       // ignore programmatic resets on select
     clearTimeout(timerRef.current);
-    if (v.trim().length < 1) { closeSuggest(); return; }
-    timerRef.current = setTimeout(() => runSearch(v.trim()), 250);
+    if (value.trim().length < 1) { setOptions([]); setSearching(false); return; }
+    setSearching(true);
+    timerRef.current = setTimeout(() => runSearch(value.trim()), 250);
   }
 
   async function runSearch(q) {
     const seq = ++seqRef.current;
-    setSearching(true);
-    setSuggestions([]);
-    setActiveIdx(-1);
-    setOpen(true);
     try {
       const r = await fetch('/api/valuescope/search?q=' + encodeURIComponent(q));
       const j = await r.json();
-      if (seq !== seqRef.current) return;   // a newer request owns the UI
-      setSearching(false);
-      if (!r.ok || j.error) { setOpen(false); return; }
-      setSuggestions(j.results || []);
+      if (seq !== seqRef.current) return; // a newer query superseded this one
+      setOptions(!r.ok || j.error ? [] : (j.results || []));
     } catch {
-      if (seq === seqRef.current) { setSearching(false); setOpen(false); }
+      if (seq === seqRef.current) setOptions([]);
+    } finally {
+      if (seq === seqRef.current) setSearching(false);
     }
   }
 
-  function pick(item) {
-    if (!item) return;
-    setQuery(item.symbol);
-    closeSuggest();
-    analyze(item.symbol);
-  }
-
-  function onKeyDown(e) {
-    if (!open || !suggestions.length) return;
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveIdx(i => {
-        let n = i + (e.key === 'ArrowDown' ? 1 : -1);
-        if (n < 0) n = suggestions.length - 1;
-        if (n >= suggestions.length) n = 0;
-        return n;
-      });
-    } else if (e.key === 'Enter' && activeIdx >= 0) {
-      e.preventDefault();
-      pick(suggestions[activeIdx]);
-    } else if (e.key === 'Escape') {
-      closeSuggest();
-    }
-  }
-
-  function onSubmit(e) {
-    e.preventDefault();
-    if (activeIdx >= 0 && suggestions[activeIdx]) { pick(suggestions[activeIdx]); return; }
-    closeSuggest();
-    analyze();
+  function onPick(value) {
+    if (!value) return;
+    if (typeof value === 'string') { analyze(value); return; }   // freeSolo text
+    setInputValue(value.symbol);
+    analyze(value.symbol);
   }
 
   async function analyze(symbolOverride) {
-    const symbol = (symbolOverride || query).trim().toUpperCase();
-    if (!symbol) { setStatus({ msg: 'Search for a company or enter a ticker first.', cls: 'err' }); return; }
+    const symbol = (symbolOverride || inputValue).trim().toUpperCase();
+    if (!symbol) { setStatus({ severity: 'error', msg: 'Search for a company or enter a ticker first.' }); return; }
     setAnalyzing(true);
     setData(null);
-    setStatus({ msg: 'Fetching fundamentals for ' + symbol + '…', cls: 'work' });
+    setStatus({ severity: 'info', msg: 'Fetching fundamentals for ' + symbol + '…' });
     try {
       const r = await fetch('/api/valuescope/metrics?symbol=' + encodeURIComponent(symbol));
       const j = await r.json();
-      if (!r.ok || j.error) { setStatus({ msg: j.error || 'Could not fetch data.', cls: 'err' }); return; }
-      setStatus({ msg: '', cls: '' });
+      if (!r.ok || j.error) { setStatus({ severity: 'error', msg: j.error || 'Could not fetch data.' }); return; }
+      setStatus(null);
       setData(j);
     } catch {
-      setStatus({ msg: 'Network error — please retry.', cls: 'err' });
+      setStatus({ severity: 'error', msg: 'Network error — please retry.' });
     } finally {
       setAnalyzing(false);
     }
@@ -165,99 +132,122 @@ export default function ValueScope() {
 
   const M = data?.metrics || {};
   const scoring = data ? computeScore(M) : null;
-  const R = 40, C = 2 * Math.PI * R;
+  const sub = data ? [data.sector, data.industry].filter(Boolean).join(' · ') : '';
 
   return (
-    <div className="page vs">
-      <div className="logo">Value<span>Scope</span></div>
-      <div className="tagline">fundamental metrics &amp; a quick value-investing read for any ticker</div>
+    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 12, px: 2, pb: 4 }}>
+      <Typography variant="h4" fontWeight={700}>
+        Value<Box component="span" sx={{ color: 'primary.main' }}>Scope</Box>
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+        fundamental metrics & a quick value-investing read for any ticker
+      </Typography>
 
-      <form className="search" onSubmit={onSubmit} autoComplete="off">
-        <div className={'combo' + (searching ? ' loading' : '')}>
-          <input value={query} onChange={e => onInput(e.target.value)} onKeyDown={onKeyDown}
-                 maxLength={64} spellCheck="false" autoComplete="off"
-                 placeholder="Search company or ticker — e.g. Apple or AAPL" />
-          <span className="in-spin" aria-hidden="true" />
-          {open && (
-            <div className="suggest open" role="listbox">
-              {searching ? (
-                <div className="sug-loading"><span className="spinner" />Searching…</div>
-              ) : suggestions.length === 0 ? (
-                <div className="sug-empty">No matching companies found.</div>
-              ) : suggestions.map((it, i) => (
-                <div key={it.symbol} className={'sug-item' + (i === activeIdx ? ' active' : '')}
-                     role="option" onMouseDown={e => { e.preventDefault(); pick(it); }}>
-                  <span className="s">{it.symbol}</span>
-                  <span className="n">{it.name}</span>
-                  <span className="x">{it.exchange}</span>
-                </div>
-              ))}
-            </div>
+      <Stack spacing={1.5} sx={{ width: '100%', maxWidth: 480 }}>
+        <Autocomplete
+          freeSolo
+          options={options}
+          loading={searching}
+          filterOptions={(x) => x}                 // server-side results, no client filter
+          inputValue={inputValue}
+          onInputChange={(e, v, reason) => onInput(v, reason)}
+          onChange={(e, v) => onPick(v)}
+          getOptionLabel={(o) => (typeof o === 'string' ? o : o.symbol)}
+          isOptionEqualToValue={(o, v) => o.symbol === v.symbol}
+          noOptionsText="No matching companies found."
+          renderOption={(props, o) => (
+            <Box component="li" {...props} key={o.symbol}>
+              <Typography sx={{ fontWeight: 600, minWidth: 64 }}>{o.symbol}</Typography>
+              <Typography variant="body2" color="text.secondary" noWrap sx={{ flex: 1, mx: 1 }}>{o.name}</Typography>
+              <Typography variant="caption" color="text.disabled">{o.exchange}</Typography>
+            </Box>
           )}
-        </div>
-        <button className="btn-go" type="submit">Analyze</button>
-      </form>
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              placeholder="Search company or ticker — e.g. Apple or AAPL"
+              onKeyDown={(e) => { if (e.key === 'Enter' && inputValue.trim()) analyze(); }}
+              slotProps={{
+                input: {
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {searching ? <CircularProgress color="inherit" size={18} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                },
+              }}
+            />
+          )}
+        />
+        <Button variant="contained" size="large" onClick={() => analyze()}>Analyze</Button>
+      </Stack>
 
-      <div className={'status ' + status.cls}>
-        {analyzing && <span className="spinner" />}{status.msg}
-      </div>
+      {status && <Alert severity={status.severity} variant="outlined" sx={{ mt: 2, width: '100%', maxWidth: 480 }}
+        icon={status.severity === 'info' && analyzing ? <CircularProgress size={18} /> : undefined}>{status.msg}</Alert>}
 
       {data && scoring && (
-        <div className="dash">
-          <div className="head">
-            <div className="id">
-              <div className="sym">{data.symbol}</div>
-              <div className="nm">{data.name}</div>
-              <div className="sub">
-                {[data.sector, data.industry].filter(Boolean).join(' · ')}
-                {(data.sector || data.industry) && <br />}
-                Market cap {fmtMoney(data.marketCap, data.currency)}
-              </div>
-            </div>
-            <div className="px">
-              <div className="l">Price</div>
-              <div className="v">{fmtMoney(data.price, data.currency)}</div>
-            </div>
-            <div className="score-wrap">
-              <div className="ring">
-                <svg width="92" height="92" viewBox="0 0 92 92">
-                  <circle className="track" cx="46" cy="46" r={R} fill="none" strokeWidth="8" />
-                  <circle cx="46" cy="46" r={R} fill="none" stroke={scoring.color} strokeWidth="8"
-                          strokeLinecap="round" strokeDasharray={`${(scoring.score / 100) * C} ${C}`}
-                          transform="rotate(-90 46 46)" />
-                </svg>
-                <div className="val-num">
-                  <b style={{ color: scoring.color }}>{scoring.score}</b><s>/ 100</s>
-                </div>
-              </div>
-              <div className="verdict" style={{ color: scoring.color }}>{scoring.verdict}</div>
-            </div>
-          </div>
+        <Box sx={{ width: '100%', maxWidth: 860, mt: 3 }}>
+          <Paper variant="outlined" sx={{ p: 3, mb: 2, display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+            <Box sx={{ flex: 1, minWidth: 200 }}>
+              <Typography variant="h5" fontWeight={700}>{data.symbol}</Typography>
+              <Typography variant="body2">{data.name}</Typography>
+              <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
+                {sub}{sub ? <br /> : null}Market cap {fmtMoney(data.marketCap, data.currency)}
+              </Typography>
+            </Box>
+            <Box sx={{ textAlign: 'right' }}>
+              <Typography variant="overline" color="text.secondary">Price</Typography>
+              <Typography variant="h6">{fmtMoney(data.price, data.currency)}</Typography>
+            </Box>
+            <Stack alignItems="center" spacing={0.5}>
+              <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                <CircularProgress variant="determinate" value={scoring.score} size={88} thickness={4} color={scoring.color} />
+                <Box sx={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <Typography variant="h5" color={`${scoring.color}.main`} fontWeight={700} lineHeight={1}>{scoring.score}</Typography>
+                  <Typography variant="caption" color="text.secondary">/ 100</Typography>
+                </Box>
+              </Box>
+              <Chip size="small" color={scoring.color} label={scoring.verdict} />
+            </Stack>
+          </Paper>
 
           {GROUPS.map(g => (
-            <div className="group" key={g.title}>
-              <div className="group-title">{g.title}</div>
-              <div className="cards">
-                {g.items.map(m => (
-                  <div className={'metric ' + rate(M[m.key], m)} key={m.key}>
-                    <div className="k">{m.label}</div>
-                    <div className="v">{fmtVal(M[m.key], m)}</div>
-                    <div className="t">{m.note}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <Box key={g.title} sx={{ mb: 2 }}>
+              <Typography variant="overline" color="text.secondary" sx={{ pl: 0.5 }}>{g.title}</Typography>
+              <Paper variant="outlined">
+                <Table size="small">
+                  <TableBody>
+                    {g.items.map(m => {
+                      const r = rate(M[m.key], m);
+                      return (
+                        <TableRow key={m.key}>
+                          <TableCell sx={{ fontWeight: 600, width: 140 }}>{m.label}</TableCell>
+                          <TableCell sx={{ width: 96 }}>
+                            <Chip size="small" variant="outlined" color={CHIP_COLOR[r]} label={fmtVal(M[m.key], m)} />
+                          </TableCell>
+                          <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>{m.note}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </Paper>
+            </Box>
           ))}
 
-          <div className="disclaimer">
+          <Typography variant="caption" color="text.disabled" component="p" sx={{ mt: 1 }}>
             Color coding compares each metric against common value-investing rules of thumb
             (green = favorable, blue = acceptable, red = caution, grey = no data). Thresholds are
             generic and ignore sector context. Informational only — not investment advice.
-          </div>
-        </div>
+          </Typography>
+        </Box>
       )}
 
-      <footer className="footer">PoznIT / MicroProjects</footer>
-    </div>
+      <Typography variant="caption" color="text.secondary" sx={{ mt: 'auto', pt: 6 }}>
+        PoznIT / MicroProjects
+      </Typography>
+    </Box>
   );
 }

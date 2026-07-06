@@ -1,0 +1,3 @@
+/* Minimal global CSS. Reset + colors come from MUI CssBaseline / theme;
+   only full-height sizing lives here. */
+html, body, #root { height: 100%; }
