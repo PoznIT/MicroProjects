@@ -1,10 +1,14 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, Fragment } from 'react';
 import {
   Box, Typography, Paper, TextField, Button, Autocomplete, CircularProgress,
-  Chip, Table, TableBody, TableRow, TableCell, Stack, Alert,
+  Chip, Table, TableBody, TableRow, TableCell, Stack, Alert, Collapse,
 } from '@mui/material';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import Watchlist from '../components/Watchlist.jsx';
+import MetricChart from '../components/MetricChart.jsx';
 import { GROUPS, rate, fmtVal, fmtMoney, computeScore, CHIP_COLOR } from './valuescope-score.js';
+import { hasHistory } from './valuescope-history.js';
 
 export default function ValueScope() {
   const [inputValue, setInputValue] = useState('');
@@ -13,6 +17,9 @@ export default function ValueScope() {
   const [status, setStatus] = useState(null); // { severity, msg }
   const [analyzing, setAnalyzing] = useState(false);
   const [data, setData] = useState(null);
+  const [expanded, setExpanded] = useState(null);   // metric key currently open
+  const [history, setHistory] = useState(null);      // /history payload for `data`
+  const [historyState, setHistoryState] = useState('idle'); // idle|loading|error
 
   const seqRef = useRef(0);
   const timerRef = useRef(null);
@@ -52,6 +59,9 @@ export default function ValueScope() {
     if (!symbol) { setStatus({ severity: 'error', msg: 'Search for a company or enter a ticker first.' }); return; }
     setAnalyzing(true);
     setData(null);
+    setExpanded(null);
+    setHistory(null);
+    setHistoryState('idle');
     setStatus({ severity: 'info', msg: 'Fetching fundamentals for ' + symbol + '…' });
     try {
       const r = await fetch('/api/valuescope/metrics?symbol=' + encodeURIComponent(symbol));
@@ -64,6 +74,25 @@ export default function ValueScope() {
     } finally {
       setAnalyzing(false);
     }
+  }
+
+  // Lazy-load the historical series the first time any metric is expanded.
+  async function loadHistory(symbol) {
+    setHistoryState('loading');
+    try {
+      const r = await fetch('/api/valuescope/history?symbol=' + encodeURIComponent(symbol));
+      const j = await r.json();
+      if (!r.ok || j.error) { setHistoryState('error'); return; }
+      setHistory(j);
+      setHistoryState('ready');
+    } catch {
+      setHistoryState('error');
+    }
+  }
+
+  function toggleMetric(key) {
+    setExpanded((cur) => (cur === key ? null : key));
+    if (history === null && historyState !== 'loading' && data) loadHistory(data.symbol);
   }
 
   const M = data?.metrics || {};
@@ -159,14 +188,58 @@ export default function ValueScope() {
                   <TableBody>
                     {g.items.map(m => {
                       const r = rate(M[m.key], m);
+                      const isOpen = expanded === m.key;
+                      const ready = historyState === 'ready';
+                      const chartable = ready && hasHistory(m, history, M[m.key]);
                       return (
-                        <TableRow key={m.key}>
-                          <TableCell sx={{ fontWeight: 600, width: 140 }}>{m.label}</TableCell>
-                          <TableCell sx={{ width: 96 }}>
-                            <Chip size="small" variant="outlined" color={CHIP_COLOR[r]} label={fmtVal(M[m.key], m)} />
-                          </TableCell>
-                          <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>{m.note}</TableCell>
-                        </TableRow>
+                        <Fragment key={m.key}>
+                          <TableRow
+                            hover
+                            onClick={() => toggleMetric(m.key)}
+                            sx={{ cursor: 'pointer', '& > td': { borderBottom: isOpen ? 'none' : undefined } }}
+                          >
+                            <TableCell sx={{ fontWeight: 600, width: 150 }}>
+                              <FontAwesomeIcon
+                                icon={faChevronRight}
+                                style={{
+                                  fontSize: 11, marginRight: 8, opacity: 0.5,
+                                  transition: 'transform .15s',
+                                  transform: isOpen ? 'rotate(90deg)' : 'none',
+                                }}
+                              />
+                              {m.label}
+                            </TableCell>
+                            <TableCell sx={{ width: 96 }}>
+                              <Chip size="small" variant="outlined" color={CHIP_COLOR[r]} label={fmtVal(M[m.key], m)} />
+                            </TableCell>
+                            <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>{m.note}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell colSpan={3} sx={{ p: 0, borderBottom: isOpen ? undefined : 'none' }}>
+                              <Collapse in={isOpen} timeout="auto" unmountOnExit>
+                                {historyState === 'loading' && (
+                                  <Stack direction="row" spacing={1} alignItems="center" sx={{ p: 2, color: 'text.secondary' }}>
+                                    <CircularProgress size={16} />
+                                    <Typography variant="body2">Loading history…</Typography>
+                                  </Stack>
+                                )}
+                                {historyState === 'error' && (
+                                  <Typography variant="body2" color="error" sx={{ p: 2 }}>
+                                    Couldn't load history — please retry.
+                                  </Typography>
+                                )}
+                                {ready && !chartable && (
+                                  <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
+                                    No history available for this metric.
+                                  </Typography>
+                                )}
+                                {chartable && (
+                                  <MetricChart metric={m} history={history} currentValue={M[m.key]} />
+                                )}
+                              </Collapse>
+                            </TableCell>
+                          </TableRow>
+                        </Fragment>
                       );
                     })}
                   </TableBody>
