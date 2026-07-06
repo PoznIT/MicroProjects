@@ -5,7 +5,7 @@ import {
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faChevronDown, faChevronRight, faRotate, faPlus, faTrashCan,
+  faChevronDown, faChevronRight, faChevronLeft, faRotate, faPlus, faTrashCan,
   faXmark, faListUl,
 } from '@fortawesome/free-solid-svg-icons';
 import { computeScore } from '../pages/valuescope-score.js';
@@ -79,37 +79,49 @@ export default function Watchlist({ current, onSelect }) {
     setRefreshing(false);
   }
 
-  // Collapsed: a slim vertical tab pinned to the right edge.
-  if (!panelOpen) {
-    return (
-      <Tooltip title="Open watchlists" placement="left">
-        <Paper
-          variant="outlined"
-          onClick={() => setPanelOpen(true)}
-          sx={{
-            position: 'fixed', top: 88, right: 0, zIndex: 1100, cursor: 'pointer',
-            px: 1, py: 1.5, borderTopRightRadius: 0, borderBottomRightRadius: 0,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-          }}
-        >
-          <FontAwesomeIcon icon={faListUl} />
-          {totalItems > 0 && <Chip size="small" label={totalItems} sx={{ height: 18, fontSize: 11 }} />}
-        </Paper>
-      </Tooltip>
-    );
-  }
+  // Docked full-height pane on the right, just below the fixed app bar.
+  const APPBAR = 48; // dense MUI Toolbar height
 
   return (
-    <Paper
-      variant="outlined"
-      sx={{
-        position: 'fixed', top: 88, right: 16, zIndex: 1100, width: 320,
-        maxHeight: 'calc(100vh - 112px)', display: 'flex', flexDirection: 'column',
-      }}
-    >
+    <Box sx={{
+      position: 'fixed', top: APPBAR, right: 0, height: `calc(100dvh - ${APPBAR}px)`,
+      zIndex: 1000, display: 'flex', alignItems: 'stretch',
+    }}>
+      {/* Rail handle — always docked to the edge; toggles the pane open/closed */}
+      <Box
+        onClick={() => setPanelOpen(o => !o)}
+        sx={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+          py: 1.5, px: 0.25, cursor: 'pointer', bgcolor: 'background.paper',
+          borderLeft: 1, borderColor: 'divider',
+        }}
+      >
+        <Tooltip title={panelOpen ? 'Collapse watchlists' : 'Open watchlists'} placement="left">
+          <IconButton size="small">
+            <FontAwesomeIcon icon={panelOpen ? faChevronRight : faChevronLeft} size="sm" />
+          </IconButton>
+        </Tooltip>
+        <FontAwesomeIcon icon={faListUl} />
+        {totalItems > 0 && <Chip size="small" label={totalItems} sx={{ height: 18, fontSize: 11 }} />}
+        {!panelOpen && (
+          <Typography
+            variant="caption" color="text.secondary"
+            sx={{ writingMode: 'vertical-rl', letterSpacing: '.12em', mt: 0.5 }}
+          >
+            WATCHLISTS
+          </Typography>
+        )}
+      </Box>
+
+      {/* Sliding pane */}
+      <Collapse orientation="horizontal" in={panelOpen} sx={{ height: '100%' }}>
+        <Paper
+          square variant="outlined"
+          sx={{ width: 320, height: '100%', display: 'flex', flexDirection: 'column',
+                borderTop: 0, borderRight: 0, borderBottom: 0 }}
+        >
       {/* Panel header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 1 }}>
-        <FontAwesomeIcon icon={faListUl} />
         <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>Watchlists</Typography>
         <Tooltip title={totalItems ? 'Refresh all values' : 'Nothing to refresh yet'}>
           <span>
@@ -119,11 +131,6 @@ export default function Watchlist({ current, onSelect }) {
                 : <FontAwesomeIcon icon={faRotate} size="sm" />}
             </IconButton>
           </span>
-        </Tooltip>
-        <Tooltip title="Collapse panel">
-          <IconButton size="small" onClick={() => setPanelOpen(false)}>
-            <FontAwesomeIcon icon={faXmark} size="sm" />
-          </IconButton>
         </Tooltip>
       </Box>
       <Divider />
@@ -144,7 +151,7 @@ export default function Watchlist({ current, onSelect }) {
       <Divider />
 
       {/* Lists */}
-      <Box sx={{ overflowY: 'auto' }}>
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
         {lists.length === 0 && (
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', p: 2, textAlign: 'center' }}>
             Create a list, then add the symbol you're analyzing to start tracking it.
@@ -227,6 +234,8 @@ export default function Watchlist({ current, onSelect }) {
           );
         })}
       </Box>
-    </Paper>
+        </Paper>
+      </Collapse>
+    </Box>
   );
 }
