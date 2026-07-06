@@ -84,8 +84,8 @@ export default function Watchlist({ current, onSelect }) {
 
   return (
     <Box sx={{
-      position: 'fixed', top: APPBAR, right: 0, height: `calc(100dvh - ${APPBAR}px)`,
-      zIndex: 1000, display: 'flex', alignItems: 'stretch',
+      position: 'fixed', top: APPBAR, left: 0, height: `calc(100dvh - ${APPBAR}px)`,
+      zIndex: 1000, display: 'flex', flexDirection: 'row-reverse', alignItems: 'stretch',
     }}>
       {/* Rail handle — always docked to the edge; toggles the pane open/closed */}
       <Box
@@ -93,12 +93,12 @@ export default function Watchlist({ current, onSelect }) {
         sx={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
           py: 1.5, px: 0.25, cursor: 'pointer', bgcolor: 'background.paper',
-          borderLeft: 1, borderColor: 'divider',
+          borderRight: 1, borderColor: 'divider',
         }}
       >
-        <Tooltip title={panelOpen ? 'Collapse watchlists' : 'Open watchlists'} placement="left">
+        <Tooltip title={panelOpen ? 'Collapse watchlists' : 'Open watchlists'} placement="right">
           <IconButton size="small">
-            <FontAwesomeIcon icon={panelOpen ? faChevronRight : faChevronLeft} size="sm" />
+            <FontAwesomeIcon icon={panelOpen ? faChevronLeft : faChevronRight} size="sm" />
           </IconButton>
         </Tooltip>
         <FontAwesomeIcon icon={faListUl} />
@@ -118,7 +118,7 @@ export default function Watchlist({ current, onSelect }) {
         <Paper
           square variant="outlined"
           sx={{ width: 320, height: '100%', display: 'flex', flexDirection: 'column',
-                borderTop: 0, borderRight: 0, borderBottom: 0 }}
+                borderTop: 0, borderLeft: 0, borderBottom: 0 }}
         >
       {/* Panel header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 1 }}>
