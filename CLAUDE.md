@@ -35,3 +35,4 @@ Run: `cp .env.example .env` (set `MP_PASSWORD` + `MP_SECRET`), then
    git push -u origin <branch>
    gh pr create --fill --base main            # or: glab mr create --fill --target-branch main
    ```
+4. Branch must be deleted upon merge
