@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Box, Paper, Typography, IconButton, Collapse, Chip, Stack,
   TextField, Tooltip, CircularProgress, Divider,
@@ -6,9 +6,10 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faChevronDown, faChevronRight, faChevronLeft, faRotate, faPlus, faTrashCan,
-  faXmark, faListUl,
+  faXmark, faListUl, faFloppyDisk, faFolderOpen,
 } from '@fortawesome/free-solid-svg-icons';
 import { computeScore } from '../pages/valuescope-score.js';
+import { saveSession, parseSession } from '../pages/valuescope-session.js';
 
 const LS_LISTS = 'vs-watchlists';   // [{ id, name, open, items: [{symbol,name,score,verdict,color}] }]
 const LS_PANEL = 'vs-panel-open';   // 'true' | 'false'
@@ -34,6 +35,8 @@ export default function Watchlist({ current, onSelect }) {
   const [panelOpen, setPanelOpen] = useState(() => localStorage.getItem(LS_PANEL) !== 'false');
   const [refreshing, setRefreshing] = useState(false);
   const [newName, setNewName] = useState('');
+  const [notice, setNotice] = useState(null); // { error, text }
+  const fileRef = useRef(null);
 
   useEffect(() => { localStorage.setItem(LS_LISTS, JSON.stringify(lists)); }, [lists]);
   useEffect(() => { localStorage.setItem(LS_PANEL, String(panelOpen)); }, [panelOpen]);
@@ -60,23 +63,51 @@ export default function Watchlist({ current, onSelect }) {
     }));
   }
 
-  async function refreshAll() {
-    const symbols = [...new Set(lists.flatMap(l => l.items.map(i => i.symbol)))];
-    if (!symbols.length || refreshing) return;
-    setRefreshing(true);
-    const updated = {};
+  // Fetch live metrics for a set of symbols and score them into watchlist items.
+  async function fetchItems(symbols) {
+    const out = {};
     await Promise.all(symbols.map(async (sym) => {
       try {
         const r = await fetch('/api/valuescope/metrics?symbol=' + encodeURIComponent(sym));
         const j = await r.json();
-        if (r.ok && !j.error) updated[sym] = toItem(j);
-      } catch { /* leave the stale value in place */ }
+        if (r.ok && !j.error) out[sym] = toItem(j);
+      } catch { /* leave the existing value in place */ }
     }));
-    setLists(ls => ls.map(l => ({
-      ...l,
-      items: l.items.map(it => updated[it.symbol] ? { ...it, ...updated[it.symbol] } : it),
-    })));
+    return out;
+  }
+
+  const applyItems = (updated) => setLists(ls => ls.map(l => ({
+    ...l,
+    items: l.items.map(it => updated[it.symbol] ? { ...it, ...updated[it.symbol] } : it),
+  })));
+
+  async function refreshAll() {
+    const symbols = [...new Set(lists.flatMap(l => l.items.map(i => i.symbol)))];
+    if (!symbols.length || refreshing) return;
+    setRefreshing(true);
+    applyItems(await fetchItems(symbols));
     setRefreshing(false);
+  }
+
+  async function loadSession(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';                 // allow re-loading the same file
+    if (!file) return;
+    try {
+      const loaded = parseSession(await file.text());
+      setLists(ls => [...ls, ...loaded]);
+      const symbols = [...new Set(loaded.flatMap(l => l.items.map(i => i.symbol)))];
+      setNotice({ error: false, text:
+        `Loaded ${loaded.length} list(s), ${symbols.length} symbol(s)${symbols.length ? ' — scoring…' : ''}` });
+      if (symbols.length) {
+        setRefreshing(true);
+        applyItems(await fetchItems(symbols));
+        setRefreshing(false);
+        setNotice({ error: false, text: `Loaded ${loaded.length} list(s), ${symbols.length} symbol(s).` });
+      }
+    } catch (err) {
+      setNotice({ error: true, text: 'Could not load — ' + (err.message || 'invalid file.') });
+    }
   }
 
   // Docked full-height pane on the right, just below the fixed app bar.
@@ -121,7 +152,7 @@ export default function Watchlist({ current, onSelect }) {
                 borderTop: 0, borderLeft: 0, borderBottom: 0 }}
         >
       {/* Panel header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1.5, py: 1 }}>
         <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>Watchlists</Typography>
         <Tooltip title={totalItems ? 'Refresh all values' : 'Nothing to refresh yet'}>
           <span>
@@ -132,7 +163,32 @@ export default function Watchlist({ current, onSelect }) {
             </IconButton>
           </span>
         </Tooltip>
+        <Tooltip title={totalItems ? 'Save watchlists to a file' : 'Nothing to save yet'}>
+          <span>
+            <IconButton size="small" onClick={() => saveSession(lists)} disabled={!totalItems}>
+              <FontAwesomeIcon icon={faFloppyDisk} size="sm" />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="Load watchlists from a file">
+          <IconButton size="small" onClick={() => fileRef.current?.click()}>
+            <FontAwesomeIcon icon={faFolderOpen} size="sm" />
+          </IconButton>
+        </Tooltip>
+        <input
+          ref={fileRef} type="file" accept=".yaml,.yml,application/yaml,text/yaml"
+          hidden onChange={loadSession}
+        />
       </Box>
+      {notice && (
+        <Typography
+          variant="caption" onClick={() => setNotice(null)}
+          sx={{ display: 'block', px: 1.5, pb: 1, cursor: 'pointer',
+                color: notice.error ? 'error.main' : 'success.main' }}
+        >
+          {notice.text}
+        </Typography>
+      )}
       <Divider />
 
       {/* Create a new list */}
@@ -216,7 +272,7 @@ export default function Watchlist({ current, onSelect }) {
                             {item.name}
                           </Typography>
                         </Box>
-                        <Chip size="small" color={item.color} label={item.score} sx={{ minWidth: 44 }} />
+                        <Chip size="small" color={item.color} label={item.score ?? '…'} sx={{ minWidth: 44 }} />
                         <IconButton
                           className="rm" size="small"
                           onClick={(e) => { e.stopPropagation(); removeItem(list.id, item.symbol); }}
