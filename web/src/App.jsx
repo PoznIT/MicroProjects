@@ -1,29 +1,36 @@
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { getTheme } from './mui-theme.js';
 import TopBar from './components/TopBar.jsx';
-import { useTheme } from './theme.js';
 import Home from './pages/Home.jsx';
 import ValueScope from './pages/ValueScope.jsx';
 import YTAudio from './pages/YTAudio.jsx';
 import TimePunch from './pages/TimePunch.jsx';
 
 export default function App() {
-  const { theme, toggle } = useTheme();
+  const [mode, setMode] = useState(() => localStorage.getItem('mp-theme') || 'dark');
+  useEffect(() => { localStorage.setItem('mp-theme', mode); }, [mode]);
+  const toggle = useCallback(() => setMode(m => (m === 'light' ? 'dark' : 'light')), []);
+
+  const theme = useMemo(() => getTheme(mode), [mode]);
   const { pathname } = useLocation();
 
-  // TimePunch has its own full-width header with action buttons, so the
-  // shared centered top bar is suppressed on that route.
+  // TimePunch renders its own full-width AppBar with action buttons.
   const ownsHeader = pathname === '/timepunch';
 
   return (
-    <>
-      {!ownsHeader && <TopBar theme={theme} toggle={toggle} />}
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      {!ownsHeader && <TopBar mode={mode} toggle={toggle} />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/valuescope" element={<ValueScope />} />
         <Route path="/ytaudio" element={<YTAudio />} />
-        <Route path="/timepunch" element={<TimePunch theme={theme} toggle={toggle} />} />
+        <Route path="/timepunch" element={<TimePunch mode={mode} toggle={toggle} />} />
         <Route path="*" element={<Home />} />
       </Routes>
-    </>
+    </ThemeProvider>
   );
 }

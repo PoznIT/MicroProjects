@@ -1,9 +1,14 @@
 import { useState, useRef } from 'react';
-import './YTAudio.css';
+import {
+  Box, Typography, Paper, TextField, Button, ToggleButton, ToggleButtonGroup,
+  CircularProgress, Alert, Stack, Avatar,
+} from '@mui/material';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faDownload } from '@fortawesome/free-solid-svg-icons';
 
 const FORMATS = [
   { value: 'best', label: 'Best', sub: 'original codec' },
-  { value: 'mp3',  label: 'MP3',  sub: '320 kbps' },
+  { value: 'mp3', label: 'MP3', sub: '320 kbps' },
   { value: 'flac', label: 'FLAC', sub: 'lossless' },
 ];
 
@@ -17,7 +22,7 @@ export default function YTAudio() {
   const [url, setUrl] = useState('');
   const [format, setFormat] = useState('best');
   const [meta, setMeta] = useState(null);
-  const [status, setStatus] = useState({ msg: '', cls: '' });
+  const [status, setStatus] = useState(null); // { severity, msg }
   const [busy, setBusy] = useState(false);
   const infoTimer = useRef(null);
 
@@ -43,9 +48,9 @@ export default function YTAudio() {
 
   async function download() {
     const u = url.trim();
-    if (!u) { setStatus({ msg: 'Paste a YouTube URL first.', cls: 'err' }); return; }
+    if (!u) { setStatus({ severity: 'error', msg: 'Paste a YouTube URL first.' }); return; }
     setBusy(true);
-    setStatus({ msg: 'Fetching & converting — this can take a moment…', cls: 'work' });
+    setStatus({ severity: 'info', msg: 'Fetching & converting — this can take a moment…' });
     try {
       const r = await fetch('/api/ytaudio/download', {
         method: 'POST',
@@ -55,7 +60,7 @@ export default function YTAudio() {
       if (!r.ok) {
         let msg = 'Download failed.';
         try { msg = (await r.json()).error || msg; } catch { /* keep default */ }
-        setStatus({ msg, cls: 'err' });
+        setStatus({ severity: 'error', msg });
         return;
       }
       const blob = await r.blob();
@@ -69,53 +74,73 @@ export default function YTAudio() {
       a.click();
       a.remove();
       URL.revokeObjectURL(a.href);
-      setStatus({ msg: '✓ Saved ' + name, cls: 'ok' });
+      setStatus({ severity: 'success', msg: 'Saved ' + name });
     } catch {
-      setStatus({ msg: 'Network error — please retry.', cls: 'err' });
+      setStatus({ severity: 'error', msg: 'Network error — please retry.' });
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="page">
-      <div className="logo">YT<span>Audio</span></div>
-      <div className="tagline">download the audio track from any YouTube video</div>
+    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 12, px: 2, pb: 4 }}>
+      <Typography variant="h4" fontWeight={700}>
+        YT<Box component="span" sx={{ color: 'primary.main' }}>Audio</Box>
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+        download the audio track from any YouTube video
+      </Typography>
 
-      <div className="panel">
-        <label htmlFor="yt-url">YouTube URL</label>
-        <input id="yt-url" type="url" autoComplete="off" spellCheck="false"
-               placeholder="https://www.youtube.com/watch?v=…"
-               value={url} onChange={e => onUrlChange(e.target.value)}
-               onKeyDown={e => { if (e.key === 'Enter') download(); }} />
+      <Paper variant="outlined" sx={{ width: '100%', maxWidth: 560, p: 3 }}>
+        <TextField
+          fullWidth label="YouTube URL" type="url" autoComplete="off"
+          placeholder="https://www.youtube.com/watch?v=…"
+          value={url} onChange={e => onUrlChange(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') download(); }}
+        />
 
         {meta && (
-          <div className="meta">
-            {meta.thumbnail && <img src={meta.thumbnail} alt="" />}
-            <div>
-              <div className="t">{meta.title}</div>
-              <div className="u">{[meta.uploader, fmtDuration(meta.duration)].filter(Boolean).join(' · ')}</div>
-            </div>
-          </div>
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
+            {meta.thumbnail && (
+              <Avatar variant="rounded" src={meta.thumbnail} sx={{ width: 64, height: 48 }} />
+            )}
+            <Box>
+              <Typography variant="body2">{meta.title}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {[meta.uploader, fmtDuration(meta.duration)].filter(Boolean).join(' · ')}
+              </Typography>
+            </Box>
+          </Stack>
         )}
 
-        <div className="formats">
+        <ToggleButtonGroup
+          fullWidth exclusive color="primary" value={format}
+          onChange={(e, v) => { if (v) setFormat(v); }}
+          sx={{ my: 3 }}
+        >
           {FORMATS.map(f => (
-            <label key={f.value} className={format === f.value ? 'sel' : ''}>
-              <input type="radio" name="format" value={f.value}
-                     checked={format === f.value} onChange={() => setFormat(f.value)} />
-              <span>{f.label}</span><small>{f.sub}</small>
-            </label>
+            <ToggleButton key={f.value} value={f.value} sx={{ flexDirection: 'column', textTransform: 'none', py: 1 }}>
+              <Typography variant="body2">{f.label}</Typography>
+              <Typography variant="caption" color="text.secondary">{f.sub}</Typography>
+            </ToggleButton>
           ))}
-        </div>
+        </ToggleButtonGroup>
 
-        <button className="btn-go" onClick={download} disabled={busy}>Download audio</button>
-        <div className={'status ' + status.cls}>
-          {busy && <span className="spinner" />}{status.msg}
-        </div>
-      </div>
+        <Button
+          fullWidth variant="contained" size="large" onClick={download} disabled={busy}
+          startIcon={busy
+            ? <CircularProgress size={18} color="inherit" />
+            : <FontAwesomeIcon icon={faDownload} />}
+        >
+          Download audio
+        </Button>
 
-      <footer className="footer">PoznIT / MicroProjects</footer>
-    </div>
+        {status && <Alert severity={status.severity} variant="outlined" sx={{ mt: 2 }}>{status.msg}</Alert>}
+      </Paper>
+
+      <Typography variant="caption" color="text.secondary" sx={{ mt: 'auto', pt: 6 }}>
+        PoznIT / MicroProjects
+      </Typography>
+    </Box>
   );
 }
