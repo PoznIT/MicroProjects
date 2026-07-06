@@ -1,6 +1,6 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
-pydantic==2.10.4
+pydantic==2.13.4
 # yfinance tracks Yahoo Finance's frequently-changing endpoints; pinning an old
 # release breaks against current Yahoo. Floor it and let the build pull the
 # newest patch so the crumb/cookie auth flow stays current.
