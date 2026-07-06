@@ -1,29 +1,33 @@
 // Value-investing rubric + scoring, shared by the ValueScope page and the
 // watchlist panel so both agree on how a symbol's score is computed.
 
+// `hist` tells the graph view how to build a metric's time series:
+//   'price'     — price-driven multiple; reconstruct as value_now × price(t)/now
+//   'priceInv'  — price-in-denominator yield; reconstruct × now/price(t)
+//   'statement' — real (sparse) points fetched from financial statements
 export const GROUPS = [
   { title: 'Valuation', items: [
-    { key: 'trailingPE',  label: 'P/E (TTM)',  dir: 'low',  good: 15,   ok: 25,   fmt: 'x', note: 'Price vs. earnings. <15 is classically cheap.' },
-    { key: 'forwardPE',   label: 'Fwd P/E',    dir: 'low',  good: 15,   ok: 25,   fmt: 'x', note: 'Price vs. expected earnings.' },
-    { key: 'priceToBook', label: 'P/B',        dir: 'low',  good: 1.5,  ok: 3,    fmt: 'x', note: 'Price vs. book value. <1.5 favored by Graham.' },
-    { key: 'pegRatio',    label: 'PEG',        dir: 'low',  good: 1,    ok: 2,    fmt: 'x', note: 'P/E adjusted for growth. <1 is attractive.' },
+    { key: 'trailingPE',  label: 'P/E (TTM)',  dir: 'low',  good: 15,   ok: 25,   fmt: 'x', hist: 'price', note: 'Price vs. earnings. <15 is classically cheap.' },
+    { key: 'forwardPE',   label: 'Fwd P/E',    dir: 'low',  good: 15,   ok: 25,   fmt: 'x', hist: 'price', note: 'Price vs. expected earnings.' },
+    { key: 'priceToBook', label: 'P/B',        dir: 'low',  good: 1.5,  ok: 3,    fmt: 'x', hist: 'price', note: 'Price vs. book value. <1.5 favored by Graham.' },
+    { key: 'pegRatio',    label: 'PEG',        dir: 'low',  good: 1,    ok: 2,    fmt: 'x', hist: 'price', note: 'P/E adjusted for growth. <1 is attractive.' },
   ]},
   { title: 'Profitability', items: [
-    { key: 'returnOnEquity', label: 'ROE',        dir: 'high', good: 0.15, ok: 0.08, fmt: '%', note: 'Return on shareholder equity. >15% is strong.' },
-    { key: 'returnOnAssets', label: 'ROA',        dir: 'high', good: 0.07, ok: 0.03, fmt: '%', note: 'How efficiently assets generate profit.' },
-    { key: 'profitMargins',  label: 'Net Margin', dir: 'high', good: 0.15, ok: 0.05, fmt: '%', note: 'Profit per dollar of revenue.' },
+    { key: 'returnOnEquity', label: 'ROE',        dir: 'high', good: 0.15, ok: 0.08, fmt: '%', hist: 'statement', note: 'Return on shareholder equity. >15% is strong.' },
+    { key: 'returnOnAssets', label: 'ROA',        dir: 'high', good: 0.07, ok: 0.03, fmt: '%', hist: 'statement', note: 'How efficiently assets generate profit.' },
+    { key: 'profitMargins',  label: 'Net Margin', dir: 'high', good: 0.15, ok: 0.05, fmt: '%', hist: 'statement', note: 'Profit per dollar of revenue.' },
   ]},
   { title: 'Financial Health', items: [
-    { key: 'debtToEquity', label: 'Debt / Equity', dir: 'low',  good: 0.5, ok: 1.0, fmt: 'x', note: 'Leverage. <0.5x is conservative.' },
-    { key: 'currentRatio', label: 'Current Ratio', dir: 'high', good: 2,   ok: 1,   fmt: 'x', note: 'Short-term assets vs. liabilities. >2 is safe.' },
+    { key: 'debtToEquity', label: 'Debt / Equity', dir: 'low',  good: 0.5, ok: 1.0, fmt: 'x', hist: 'statement', note: 'Leverage. <0.5x is conservative.' },
+    { key: 'currentRatio', label: 'Current Ratio', dir: 'high', good: 2,   ok: 1,   fmt: 'x', hist: 'statement', note: 'Short-term assets vs. liabilities. >2 is safe.' },
   ]},
   { title: 'Cash & Dividends', items: [
-    { key: 'freeCashflowYield', label: 'FCF Yield', dir: 'high', good: 0.06, ok: 0.03, fmt: '%', note: 'Free cash flow vs. market cap. >6% is rich.' },
-    { key: 'dividendYield',     label: 'Div Yield', dir: 'high', good: 0.03, ok: 0.01, fmt: '%', optional: true, note: 'Cash returned to holders. Optional for value.' },
+    { key: 'freeCashflowYield', label: 'FCF Yield', dir: 'high', good: 0.06, ok: 0.03, fmt: '%', hist: 'priceInv', note: 'Free cash flow vs. market cap. >6% is rich.' },
+    { key: 'dividendYield',     label: 'Div Yield', dir: 'high', good: 0.03, ok: 0.01, fmt: '%', hist: 'priceInv', optional: true, note: 'Cash returned to holders. Optional for value.' },
   ]},
   { title: 'Growth', items: [
-    { key: 'revenueGrowth',  label: 'Revenue Growth',  dir: 'high', good: 0.10, ok: 0.03, fmt: '%', note: 'Year-over-year revenue change.' },
-    { key: 'earningsGrowth', label: 'Earnings Growth', dir: 'high', good: 0.10, ok: 0,    fmt: '%', note: 'Year-over-year earnings change.' },
+    { key: 'revenueGrowth',  label: 'Revenue Growth',  dir: 'high', good: 0.10, ok: 0.03, fmt: '%', hist: 'statement', note: 'Year-over-year revenue change.' },
+    { key: 'earningsGrowth', label: 'Earnings Growth', dir: 'high', good: 0.10, ok: 0,    fmt: '%', hist: 'statement', note: 'Year-over-year earnings change.' },
   ]},
 ];
 

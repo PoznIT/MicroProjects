@@ -16,6 +16,14 @@ async def metrics(symbol: str = Query(..., min_length=1, max_length=12)):
     return await run_python_tool("fetch.py", symbol)
 
 
+@router.get("/history")
+async def history(symbol: str = Query(..., min_length=1, max_length=12)):
+    symbol = symbol.strip()
+    if not valid_ticker(symbol):
+        raise api_error(400, "Enter a valid ticker symbol (e.g. AAPL).")
+    return await run_python_tool("history.py", symbol)
+
+
 @router.get("/search")
 async def search(q: str = Query(..., min_length=1, max_length=64)):
     query = q.strip()
