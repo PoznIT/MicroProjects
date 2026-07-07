@@ -6,10 +6,10 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip,
   CartesianGrid, ReferenceLine,
 } from 'recharts';
-import { fmtVal, rate, CHIP_COLOR } from './score.js';
+import { fmtVal, rate, CHIP_COLOR } from './lib/score.js';
 import {
   RANGES, buildSeries, rangeEnabled, defaultRange,
-} from './history.js';
+} from './lib/history.js';
 
 // Compact axis label — value without the trailing unit noise on the axis.
 function axisFmt(metric, v) {

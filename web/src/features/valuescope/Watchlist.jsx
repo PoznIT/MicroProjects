@@ -10,44 +10,11 @@ import {
   faXmark, faListUl, faFloppyDisk, faFolderOpen,
   faEllipsisVertical, faPen, faArrowUp, faArrowDown, faCheck, faArrowsUpDown,
 } from '@fortawesome/free-solid-svg-icons';
-import { computeScore } from './score.js';
-import { saveSession, parseSession } from './session.js';
-import { assetKind } from './assets.js';
-
-const LS_LISTS = 'vs-watchlists';   // [{ id, name, open, sortKey, sortDir, items: [{symbol,name,score,verdict,color}] }]
-const LS_PANEL = 'vs-panel-open';   // 'true' | 'false'
-
-// Field sorts for the entries within a single list. sortKey === null keeps the
-// order symbols were added in; otherwise entries are sorted (non-destructively)
-// for display only — the stored array order is never mutated.
-const SORTS = {
-  score:  { label: 'Score',  cmp: (a, b) => (a.score ?? -Infinity) - (b.score ?? -Infinity) },
-  symbol: { label: 'Symbol', cmp: (a, b) => (a.symbol || '').localeCompare(b.symbol || '') },
-  name:   { label: 'Name',   cmp: (a, b) => (a.name || '').localeCompare(b.name || '') },
-};
-
-function sortedItems(list) {
-  const conf = SORTS[list.sortKey];
-  if (!conf) return list.items;
-  const out = [...list.items].sort(conf.cmp);
-  return list.sortDir === 'desc' ? out.reverse() : out;
-}
-
-function loadLists() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(LS_LISTS));
-    if (Array.isArray(raw)) return raw;
-  } catch { /* ignore corrupt state */ }
-  return [];
-}
-
-const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-
-// Build a stored watchlist item from a full /metrics response.
-function toItem(data) {
-  const s = computeScore(data.metrics || {}, data.type);
-  return { symbol: data.symbol, name: data.name, type: data.type, score: s.score, verdict: s.verdict, color: s.color };
-}
+import { saveSession, parseSession } from './lib/session.js';
+import { assetKind } from './lib/assets.js';
+import {
+  SORTS, sortedItems, loadLists, newId, toItem, LS_LISTS, LS_PANEL,
+} from './lib/watchlist.js';
 
 export default function Watchlist({ current, onSelect }) {
   const [lists, setLists] = useState(loadLists);

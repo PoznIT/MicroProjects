@@ -7,9 +7,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import Watchlist from './Watchlist.jsx';
 import MetricChart from './MetricChart.jsx';
-import { groupsFor, rate, fmtVal, fmtMoney, computeScore, CHIP_COLOR } from './score.js';
-import { hasHistory } from './history.js';
-import { assetKind, isFund } from './assets.js';
+import { groupsFor, rate, fmtVal, fmtMoney, computeScore, CHIP_COLOR } from './lib/score.js';
+import { hasHistory } from './lib/history.js';
+import { assetKind, isFund } from './lib/assets.js';
 
 export default function ValueScope() {
   const [inputValue, setInputValue] = useState('');
