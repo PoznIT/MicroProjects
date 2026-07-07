@@ -1,5 +1,5 @@
 import { Box, Typography, Alert, CircularProgress } from '@mui/material';
-import Watchlist from './Watchlist.jsx';
+import WatchlistPanel from './components/watchlist/WatchlistPanel.jsx';
 import SymbolSearch from './components/SymbolSearch.jsx';
 import SummaryCard from './components/SummaryCard.jsx';
 import MetricsTable from './components/MetricsTable.jsx';
@@ -15,7 +15,7 @@ export default function ValueScope() {
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 12, px: 2, pb: 4 }}>
-      <Watchlist current={data} onSelect={(sym) => analyze(sym)} />
+      <WatchlistPanel current={data} onSelect={(sym) => analyze(sym)} />
 
       <Typography variant="h4" fontWeight={700}>
         Value<Box component="span" sx={{ color: 'primary.main' }}>Scope</Box>
