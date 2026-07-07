@@ -7,9 +7,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import Watchlist from './Watchlist.jsx';
 import MetricChart from './MetricChart.jsx';
-import { GROUPS, rate, fmtVal, fmtMoney, computeScore, CHIP_COLOR } from './score.js';
+import { groupsFor, rate, fmtVal, fmtMoney, computeScore, CHIP_COLOR } from './score.js';
 import { hasHistory } from './history.js';
-import { assetKind } from './assets.js';
+import { assetKind, isFund } from './assets.js';
 
 export default function ValueScope() {
   const [inputValue, setInputValue] = useState('');
@@ -97,8 +97,11 @@ export default function ValueScope() {
   }
 
   const M = data?.metrics || {};
-  const scoring = data ? computeScore(M) : null;
-  const sub = data ? [data.sector, data.industry].filter(Boolean).join(' · ') : '';
+  const fund = data ? isFund(data.type) : false;
+  const scoring = data ? computeScore(M, data.type) : null;
+  const sub = data
+    ? (fund ? [data.category, data.fundFamily] : [data.sector, data.industry]).filter(Boolean).join(' · ')
+    : '';
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 12, px: 2, pb: 4 }}>
@@ -177,7 +180,9 @@ export default function ValueScope() {
               </Stack>
               <Typography variant="body2">{data.name}</Typography>
               <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
-                {sub}{sub ? <br /> : null}Market cap {fmtMoney(data.marketCap, data.currency)}
+                {sub}{sub ? <br /> : null}
+                {fund ? 'Assets ' + fmtMoney(data.aum, data.currency)
+                      : 'Market cap ' + fmtMoney(data.marketCap, data.currency)}
               </Typography>
             </Box>
             <Box sx={{ textAlign: 'right' }}>
@@ -196,7 +201,7 @@ export default function ValueScope() {
             </Stack>
           </Paper>
 
-          {GROUPS.map(g => (
+          {groupsFor(data.type).map(g => (
             <Box key={g.title} sx={{ mb: 2 }}>
               <Typography variant="overline" color="text.secondary" sx={{ pl: 0.5 }}>{g.title}</Typography>
               <Paper variant="outlined">
@@ -204,25 +209,30 @@ export default function ValueScope() {
                   <TableBody>
                     {g.items.map(m => {
                       const r = rate(M[m.key], m);
-                      const isOpen = expanded === m.key;
+                      // Only metrics with a reconstructable/statement series are
+                      // expandable into a chart — fund metrics have none.
+                      const expandable = !!m.hist;
+                      const isOpen = expandable && expanded === m.key;
                       const ready = historyState === 'ready';
-                      const chartable = ready && hasHistory(m, history, M[m.key]);
+                      const chartable = expandable && ready && hasHistory(m, history, M[m.key]);
                       return (
                         <Fragment key={m.key}>
                           <TableRow
-                            hover
-                            onClick={() => toggleMetric(m.key)}
-                            sx={{ cursor: 'pointer', '& > td': { borderBottom: isOpen ? 'none' : undefined } }}
+                            hover={expandable}
+                            onClick={expandable ? () => toggleMetric(m.key) : undefined}
+                            sx={{ cursor: expandable ? 'pointer' : 'default', '& > td': { borderBottom: isOpen ? 'none' : undefined } }}
                           >
                             <TableCell sx={{ fontWeight: 600, width: 150 }}>
-                              <FontAwesomeIcon
-                                icon={faChevronRight}
-                                style={{
-                                  fontSize: 11, marginRight: 8, opacity: 0.5,
-                                  transition: 'transform .15s',
-                                  transform: isOpen ? 'rotate(90deg)' : 'none',
-                                }}
-                              />
+                              {expandable && (
+                                <FontAwesomeIcon
+                                  icon={faChevronRight}
+                                  style={{
+                                    fontSize: 11, marginRight: 8, opacity: 0.5,
+                                    transition: 'transform .15s',
+                                    transform: isOpen ? 'rotate(90deg)' : 'none',
+                                  }}
+                                />
+                              )}
                               {m.label}
                             </TableCell>
                             <TableCell sx={{ width: 96 }}>
@@ -230,6 +240,7 @@ export default function ValueScope() {
                             </TableCell>
                             <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>{m.note}</TableCell>
                           </TableRow>
+                          {expandable && (
                           <TableRow>
                             <TableCell colSpan={3} sx={{ p: 0, borderBottom: isOpen ? undefined : 'none' }}>
                               <Collapse in={isOpen} timeout="auto" unmountOnExit>
@@ -255,6 +266,7 @@ export default function ValueScope() {
                               </Collapse>
                             </TableCell>
                           </TableRow>
+                          )}
                         </Fragment>
                       );
                     })}
@@ -265,9 +277,12 @@ export default function ValueScope() {
           ))}
 
           <Typography variant="caption" color="text.disabled" component="p" sx={{ mt: 1 }}>
-            Color coding compares each metric against common value-investing rules of thumb
-            (green = favorable, blue = acceptable, red = caution, grey = no data). Thresholds are
-            generic and ignore sector context. Informational only — not investment advice.
+            Color coding compares each metric against common{' '}
+            {fund ? 'fund-selection rules of thumb — cost, income and trailing returns'
+                  : 'value-investing rules of thumb'}{' '}
+            (green = favorable, blue = acceptable, red = caution, grey = no data / informational).
+            {fund ? ' Past performance doesn’t predict future returns.' : ''} Thresholds are generic
+            and ignore {fund ? 'category' : 'sector'} context. Informational only — not investment advice.
           </Typography>
         </Box>
       )}
