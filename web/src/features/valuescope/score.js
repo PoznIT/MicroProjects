@@ -1,5 +1,6 @@
 // Value-investing rubric + scoring, shared by the ValueScope page and the
 // watchlist panel so both agree on how a symbol's score is computed.
+import { isFund } from './assets.js';
 
 // `hist` tells the graph view how to build a metric's time series:
 //   'price'     — price-driven multiple; reconstruct as value_now × price(t)/now
@@ -31,8 +32,42 @@ export const GROUPS = [
   ]},
 ];
 
+// A fund has no income statement or balance sheet, so the equity rubric above
+// comes back empty. Funds are judged on what actually matters for a basket:
+// cost (the one persistent driver of net return), income, trailing performance,
+// risk and portfolio character. Metrics without a `dir` are informational —
+// they render a value + grey chip but don't feed the score. `weight` lets cost
+// dominate the score the way it dominates a fund's long-run outcome.
+export const ETF_GROUPS = [
+  { title: 'Cost', items: [
+    { key: 'expenseRatio', label: 'Expense Ratio', dir: 'low', good: 0.0020, ok: 0.0050, weight: 3, fmt: 'pct2', note: 'Annual fee drag. <0.20% is cheap — the top value lever for a fund.' },
+  ]},
+  { title: 'Income', items: [
+    { key: 'distributionYield', label: 'Distribution Yield', dir: 'high', good: 0.02, ok: 0.005, optional: true, fmt: '%', note: 'Trailing income paid to holders. Optional — growth funds pay little.' },
+  ]},
+  { title: 'Performance', items: [
+    { key: 'ytdReturn',       label: 'YTD Return',  fmt: '%', note: 'Return so far this year. Informational — seasonal, not annualized.' },
+    { key: 'threeYearReturn', label: '3-Yr Return', dir: 'high', good: 0.10, ok: 0.04, fmt: '%', note: 'Annualized total return over 3 years.' },
+    { key: 'fiveYearReturn',  label: '5-Yr Return', dir: 'high', good: 0.08, ok: 0.03, fmt: '%', note: 'Annualized total return over 5 years.' },
+  ]},
+  { title: 'Risk & Pricing', items: [
+    { key: 'beta3Y',          label: 'Beta (3Y)',       fmt: 'num',  note: 'Volatility vs. the market. ~1.0 moves with it; >1 is punchier.' },
+    { key: 'premiumDiscount', label: 'Premium / Disc.', fmt: 'pct2', note: 'Market price vs. NAV. Near 0% is healthy; large premiums are a caution.' },
+  ]},
+  { title: 'Portfolio', items: [
+    { key: 'portfolioPE', label: 'Weighted P/E', fmt: 'num', note: 'Aggregate P/E of holdings. Equity funds only.' },
+    { key: 'portfolioPB', label: 'Weighted P/B', fmt: 'num', note: 'Aggregate P/B of holdings. Equity funds only.' },
+  ]},
+];
+
+// Which rubric applies to a symbol, by asset class.
+export function groupsFor(type) {
+  return isFund(type) ? ETF_GROUPS : GROUPS;
+}
+
 export function rate(val, m) {
   if (val === null || val === undefined) return 'na';
+  if (!m.dir) return 'na';                 // informational metric — value only, no rating
   if (m.dir === 'low' && val <= 0) return 'bad';
   if (m.dir === 'low') return val <= m.good ? 'good' : (val <= m.ok ? 'ok' : 'bad');
   return val >= m.good ? 'good' : (val >= m.ok ? 'ok' : 'bad');
@@ -41,7 +76,9 @@ export function rate(val, m) {
 export function fmtVal(val, m) {
   if (val === null || val === undefined) return '—';
   if (m.fmt === '%') return (val * 100).toFixed(1) + '%';
+  if (m.fmt === 'pct2') return (val * 100).toFixed(2) + '%';   // fine-grained % (e.g. expense ratio)
   if (m.fmt === 'x') return val.toFixed(2) + '×';
+  if (m.fmt === 'num') return val.toFixed(2);
   return String(val);
 }
 
@@ -55,14 +92,15 @@ export function fmtMoney(n, cur) {
   return sign + n.toFixed(2);
 }
 
-export function computeScore(metrics) {
+export function computeScore(metrics, type) {
   let pts = 0, max = 0;
-  GROUPS.forEach(g => g.items.forEach(m => {
-    const r = rate(metrics[m.key], m);
+  groupsFor(type).forEach(g => g.items.forEach(m => {
+    const r = rate(metrics[m.key], m);      // informational metrics rate 'na' and are skipped
     if (r === 'na') return;
     if (m.optional && r === 'bad') return;
-    max += 2;
-    pts += (r === 'good' ? 2 : r === 'ok' ? 1 : 0);
+    const w = m.weight || 1;
+    max += 2 * w;
+    pts += (r === 'good' ? 2 : r === 'ok' ? 1 : 0) * w;
   }));
   const score = max ? Math.round((pts / max) * 100) : 0;
   if (score >= 70) return { score, verdict: 'Attractive', color: 'success' };

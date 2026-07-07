@@ -27,7 +27,7 @@ const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2
 
 // Build a stored watchlist item from a full /metrics response.
 function toItem(data) {
-  const s = computeScore(data.metrics || {});
+  const s = computeScore(data.metrics || {}, data.type);
   return { symbol: data.symbol, name: data.name, type: data.type, score: s.score, verdict: s.verdict, color: s.color };
 }
 
