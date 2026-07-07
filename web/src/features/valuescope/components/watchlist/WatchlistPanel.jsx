@@ -15,10 +15,10 @@ const APPBAR = 48; // dense MUI Toolbar height
 
 export default function WatchlistPanel({ current, onSelect }) {
   const {
-    lists, panelOpen, setPanelOpen, refreshing, totalItems,
+    lists, panelOpen, setPanelOpen, refreshing, importing, totalItems,
     newName, setNewName, notice, setNotice, editing, setEditing, menu, setMenu,
     createList, deleteList, toggleList, commitRename, moveList, setSort,
-    removeItem, addCurrent, refreshAll, loadSession,
+    removeItem, addCurrent, refreshAll, importFromIbkr, loadSession,
   } = useWatchlists();
 
   return (
@@ -37,6 +37,8 @@ export default function WatchlistPanel({ current, onSelect }) {
           <WatchlistToolbar
             totalItems={totalItems}
             refreshing={refreshing}
+            importing={importing}
+            onImportIbkr={importFromIbkr}
             onRefresh={refreshAll}
             onSave={() => saveSession(lists)}
             onLoadFile={loadSession}

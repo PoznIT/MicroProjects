@@ -2,6 +2,7 @@ import { Box, Typography, Chip, IconButton, Tooltip } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faXmark } from '@fortawesome/free-solid-svg-icons';
 import { assetKind } from '../../lib/assets.js';
+import { fmtPosition } from '../../lib/watchlist.js';
 
 // One symbol row inside a watchlist: asset-class icon, symbol/name, score chip,
 // and a hover-revealed remove button. Clicking the row re-analyzes the symbol.
@@ -25,6 +26,11 @@ export default function WatchlistItem({ item, onSelect, onRemove }) {
         <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
           {item.name}
         </Typography>
+        {item.position && (
+          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', fontVariantNumeric: 'tabular-nums' }}>
+            {fmtPosition(item.position)}
+          </Typography>
+        )}
       </Box>
       <Chip size="small" color={item.color} label={item.score ?? '…'} sx={{ minWidth: 44 }} />
       <IconButton

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { parseSession } from '../lib/session.js';
 import {
-  loadLists, newId, toItem, LS_LISTS, LS_PANEL,
+  loadLists, newId, toItem, toHoldingItem, IBKR_LIST_NAME, LS_LISTS, LS_PANEL,
 } from '../lib/watchlist.js';
 
 // Everything stateful behind the watchlist panel: the lists themselves (created,
@@ -12,6 +12,7 @@ export function useWatchlists() {
   const [lists, setLists] = useState(loadLists);
   const [panelOpen, setPanelOpen] = useState(() => localStorage.getItem(LS_PANEL) !== 'false');
   const [refreshing, setRefreshing] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [newName, setNewName] = useState('');
   const [notice, setNotice] = useState(null); // { error, text }
   const [editing, setEditing] = useState(null); // { id, name } while renaming a list
@@ -101,6 +102,42 @@ export function useWatchlists() {
     setRefreshing(false);
   }
 
+  // Pull the account's open positions from IBKR, (re)build the "IBKR Holdings"
+  // list from them, then score each symbol through the usual metrics pipeline.
+  // fetchItems returns plain scored items (no position), so spreading them over
+  // the seeded holdings keeps each entry's position intact.
+  async function importFromIbkr() {
+    if (importing || refreshing) return;
+    setImporting(true);
+    setNotice({ error: false, text: 'Fetching holdings from IBKR…' });
+    try {
+      const r = await fetch('/api/valuescope/ibkr/holdings');
+      const j = await r.json();
+      if (!r.ok || j.error) throw new Error(j.error || 'Request failed');
+
+      const positions = j.positions || [];
+      if (!positions.length) {
+        setNotice({ error: false, text: 'No open stock/ETF positions found in your IBKR account.' });
+        return;
+      }
+
+      const seeded = positions.map(toHoldingItem);
+      setLists(ls => [
+        ...ls.filter(l => l.name !== IBKR_LIST_NAME),
+        { id: newId(), name: IBKR_LIST_NAME, open: true, sortKey: null, sortDir: 'asc', items: seeded },
+      ]);
+
+      const asOf = j.asOf ? ` (as of ${j.asOf})` : '';
+      setNotice({ error: false, text: `Imported ${positions.length} holding(s) from IBKR${asOf} — scoring…` });
+      applyItems(await fetchItems([...new Set(seeded.map(i => i.symbol))]));
+      setNotice({ error: false, text: `Imported ${positions.length} holding(s) from IBKR${asOf}.` });
+    } catch (err) {
+      setNotice({ error: true, text: 'IBKR import failed — ' + (err.message || 'unknown error.') });
+    } finally {
+      setImporting(false);
+    }
+  }
+
   async function loadSession(e) {
     const file = e.target.files?.[0];
     e.target.value = '';                 // allow re-loading the same file
@@ -123,9 +160,9 @@ export function useWatchlists() {
   }
 
   return {
-    lists, panelOpen, setPanelOpen, refreshing, totalItems,
+    lists, panelOpen, setPanelOpen, refreshing, importing, totalItems,
     newName, setNewName, notice, setNotice, editing, setEditing, menu, setMenu,
     createList, deleteList, toggleList, commitRename, moveList, setSort,
-    removeItem, addCurrent, refreshAll, loadSession,
+    removeItem, addCurrent, refreshAll, importFromIbkr, loadSession,
   };
 }

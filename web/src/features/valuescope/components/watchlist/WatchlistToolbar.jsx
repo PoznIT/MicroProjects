@@ -1,22 +1,32 @@
 import { useRef } from 'react';
 import { Box, Typography, IconButton, Tooltip, CircularProgress } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faRotate, faFloppyDisk, faFolderOpen } from '@fortawesome/free-solid-svg-icons';
+import { faRotate, faFloppyDisk, faFolderOpen, faBuildingColumns } from '@fortawesome/free-solid-svg-icons';
 
-// Panel header: title plus refresh / save / load actions and the (dismissable)
-// status notice. The hidden file input is owned here and driven by the load
-// button; picking a file calls onLoadFile.
+// Panel header: title plus import / refresh / save / load actions and the
+// (dismissable) status notice. The hidden file input is owned here and driven
+// by the load button; picking a file calls onLoadFile.
 export default function WatchlistToolbar({
-  totalItems, refreshing, onRefresh, onSave, onLoadFile, notice, onDismissNotice,
+  totalItems, refreshing, importing, onImportIbkr, onRefresh, onSave, onLoadFile,
+  notice, onDismissNotice,
 }) {
   const fileRef = useRef(null);
   return (
     <>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1.5, py: 1 }}>
         <Typography variant="subtitle2" fontWeight={700} sx={{ flex: 1 }}>Watchlists</Typography>
+        <Tooltip title="Import the stocks you own from Interactive Brokers">
+          <span>
+            <IconButton size="small" onClick={onImportIbkr} disabled={importing || refreshing}>
+              {importing
+                ? <CircularProgress size={16} color="inherit" />
+                : <FontAwesomeIcon icon={faBuildingColumns} size="sm" />}
+            </IconButton>
+          </span>
+        </Tooltip>
         <Tooltip title={totalItems ? 'Refresh all values' : 'Nothing to refresh yet'}>
           <span>
-            <IconButton size="small" onClick={onRefresh} disabled={refreshing || !totalItems}>
+            <IconButton size="small" onClick={onRefresh} disabled={refreshing || importing || !totalItems}>
               {refreshing
                 ? <CircularProgress size={16} color="inherit" />
                 : <FontAwesomeIcon icon={faRotate} size="sm" />}
