@@ -2,18 +2,36 @@ import { useState, useEffect, useRef } from 'react';
 import {
   Box, Paper, Typography, IconButton, Collapse, Chip, Stack,
   TextField, Tooltip, CircularProgress, Divider,
+  Menu, MenuItem, ListItemIcon, ListItemText,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faChevronDown, faChevronRight, faChevronLeft, faRotate, faPlus, faTrashCan,
   faXmark, faListUl, faFloppyDisk, faFolderOpen,
+  faEllipsisVertical, faPen, faArrowUp, faArrowDown, faCheck, faArrowsUpDown,
 } from '@fortawesome/free-solid-svg-icons';
 import { computeScore } from './score.js';
 import { saveSession, parseSession } from './session.js';
 import { assetKind } from './assets.js';
 
-const LS_LISTS = 'vs-watchlists';   // [{ id, name, open, items: [{symbol,name,score,verdict,color}] }]
+const LS_LISTS = 'vs-watchlists';   // [{ id, name, open, sortKey, sortDir, items: [{symbol,name,score,verdict,color}] }]
 const LS_PANEL = 'vs-panel-open';   // 'true' | 'false'
+
+// Field sorts for the entries within a single list. sortKey === null keeps the
+// order symbols were added in; otherwise entries are sorted (non-destructively)
+// for display only — the stored array order is never mutated.
+const SORTS = {
+  score:  { label: 'Score',  cmp: (a, b) => (a.score ?? -Infinity) - (b.score ?? -Infinity) },
+  symbol: { label: 'Symbol', cmp: (a, b) => (a.symbol || '').localeCompare(b.symbol || '') },
+  name:   { label: 'Name',   cmp: (a, b) => (a.name || '').localeCompare(b.name || '') },
+};
+
+function sortedItems(list) {
+  const conf = SORTS[list.sortKey];
+  if (!conf) return list.items;
+  const out = [...list.items].sort(conf.cmp);
+  return list.sortDir === 'desc' ? out.reverse() : out;
+}
 
 function loadLists() {
   try {
@@ -37,6 +55,8 @@ export default function Watchlist({ current, onSelect }) {
   const [refreshing, setRefreshing] = useState(false);
   const [newName, setNewName] = useState('');
   const [notice, setNotice] = useState(null); // { error, text }
+  const [editing, setEditing] = useState(null); // { id, name } while renaming a list
+  const [menu, setMenu] = useState(null);       // { anchorEl, id } for a list's actions menu
   const fileRef = useRef(null);
 
   useEffect(() => { localStorage.setItem(LS_LISTS, JSON.stringify(lists)); }, [lists]);
@@ -46,12 +66,44 @@ export default function Watchlist({ current, onSelect }) {
 
   function createList() {
     const name = newName.trim() || `Watchlist ${lists.length + 1}`;
-    setLists(ls => [...ls, { id: newId(), name, open: true, items: [] }]);
+    setLists(ls => [...ls, { id: newId(), name, open: true, sortKey: null, sortDir: 'asc', items: [] }]);
     setNewName('');
   }
 
   const deleteList = (id) => setLists(ls => ls.filter(l => l.id !== id));
   const toggleList = (id) => setLists(ls => ls.map(l => l.id === id ? { ...l, open: !l.open } : l));
+
+  const renameList = (id, name) => setLists(ls => ls.map(l => l.id === id ? { ...l, name } : l));
+
+  function commitRename() {
+    if (!editing) return;
+    const name = editing.name.trim();
+    if (name) renameList(editing.id, name);
+    setEditing(null);
+  }
+
+  // Swap a list with its neighbour to move it up (-1) or down (+1) in the panel.
+  function moveList(id, dir) {
+    setLists(ls => {
+      const i = ls.findIndex(l => l.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= ls.length) return ls;
+      const next = [...ls];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  }
+
+  // Pick the field to sort a list's entries by; re-picking the active field
+  // flips direction, and null restores the original "as added" order.
+  function setSort(id, key) {
+    setLists(ls => ls.map(l => {
+      if (l.id !== id) return l;
+      if (key === null) return { ...l, sortKey: null };
+      if (l.sortKey === key) return { ...l, sortDir: l.sortDir === 'asc' ? 'desc' : 'asc' };
+      return { ...l, sortKey: key, sortDir: key === 'score' ? 'desc' : 'asc' };
+    }));
+  }
   const removeItem = (id, symbol) =>
     setLists(ls => ls.map(l => l.id === id ? { ...l, items: l.items.filter(i => i.symbol !== symbol) } : l));
 
@@ -215,8 +267,9 @@ export default function Watchlist({ current, onSelect }) {
           </Typography>
         )}
 
-        {lists.map(list => {
+        {lists.map((list, idx) => {
           const inList = current && list.items.some(i => i.symbol === current.symbol);
+          const editingThis = editing?.id === list.id;
           return (
             <Box key={list.id}>
               {/* List header — click to collapse vertically */}
@@ -224,12 +277,34 @@ export default function Watchlist({ current, onSelect }) {
                 <IconButton size="small" onClick={() => toggleList(list.id)}>
                   <FontAwesomeIcon icon={list.open ? faChevronDown : faChevronRight} size="xs" />
                 </IconButton>
-                <Typography
-                  variant="body2" fontWeight={600} noWrap
-                  sx={{ flex: 1, cursor: 'pointer' }} onClick={() => toggleList(list.id)}
-                >
-                  {list.name}
-                </Typography>
+                {editingThis ? (
+                  <TextField
+                    size="small" variant="standard" autoFocus fullWidth
+                    value={editing.name}
+                    onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                    onBlur={commitRename}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitRename();
+                      if (e.key === 'Escape') setEditing(null);
+                    }}
+                    sx={{ flex: 1 }}
+                  />
+                ) : (
+                  <Typography
+                    variant="body2" fontWeight={600} noWrap
+                    sx={{ flex: 1, cursor: 'pointer' }} onClick={() => toggleList(list.id)}
+                    onDoubleClick={() => setEditing({ id: list.id, name: list.name })}
+                  >
+                    {list.name}
+                  </Typography>
+                )}
+                {list.sortKey && (
+                  <Tooltip title={`Sorted by ${SORTS[list.sortKey].label} (${list.sortDir})`}>
+                    <Box component="span" sx={{ color: 'text.disabled', fontSize: 11 }}>
+                      <FontAwesomeIcon icon={list.sortDir === 'desc' ? faArrowDown : faArrowUp} size="xs" />
+                    </Box>
+                  </Tooltip>
+                )}
                 <Typography variant="caption" color="text.secondary">{list.items.length}</Typography>
                 <Tooltip title={
                   !current ? 'Analyze a symbol to add it'
@@ -243,9 +318,9 @@ export default function Watchlist({ current, onSelect }) {
                     </IconButton>
                   </span>
                 </Tooltip>
-                <Tooltip title="Delete list">
-                  <IconButton size="small" onClick={() => deleteList(list.id)}>
-                    <FontAwesomeIcon icon={faTrashCan} size="xs" />
+                <Tooltip title="List actions">
+                  <IconButton size="small" onClick={(e) => setMenu({ anchorEl: e.currentTarget, id: list.id })}>
+                    <FontAwesomeIcon icon={faEllipsisVertical} size="xs" />
                   </IconButton>
                 </Tooltip>
               </Box>
@@ -257,7 +332,7 @@ export default function Watchlist({ current, onSelect }) {
                   </Typography>
                 ) : (
                   <Stack sx={{ pb: 0.5 }}>
-                    {list.items.map(item => (
+                    {sortedItems(list).map(item => (
                       <Box
                         key={item.symbol}
                         onClick={() => onSelect?.(item.symbol)}
@@ -296,8 +371,75 @@ export default function Watchlist({ current, onSelect }) {
           );
         })}
       </Box>
+
+      {/* Per-list actions: rename, reorder the list, and sort its entries */}
+      <ListMenu
+        menu={menu}
+        lists={lists}
+        onClose={() => setMenu(null)}
+        onRename={(id, name) => setEditing({ id, name })}
+        onMove={moveList}
+        onSort={setSort}
+        onDelete={deleteList}
+      />
         </Paper>
       </Collapse>
     </Box>
+  );
+}
+
+// Actions menu for a single watchlist. Kept separate so the header row stays
+// uncluttered; it resolves the target list from `menu.id` each render.
+function ListMenu({ menu, lists, onClose, onRename, onMove, onSort, onDelete }) {
+  const list = menu && lists.find(l => l.id === menu.id);
+  const idx = list ? lists.findIndex(l => l.id === list.id) : -1;
+  const after = (fn) => () => { fn(); onClose(); };
+  return (
+    <Menu
+      anchorEl={menu?.anchorEl}
+      open={Boolean(menu) && Boolean(list)}
+      onClose={onClose}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+    >
+      <MenuItem onClick={after(() => onRename(list.id, list.name))}>
+        <ListItemIcon><FontAwesomeIcon icon={faPen} /></ListItemIcon>
+        <ListItemText>Rename</ListItemText>
+      </MenuItem>
+      <MenuItem disabled={idx <= 0} onClick={after(() => onMove(list.id, -1))}>
+        <ListItemIcon><FontAwesomeIcon icon={faArrowUp} /></ListItemIcon>
+        <ListItemText>Move up</ListItemText>
+      </MenuItem>
+      <MenuItem disabled={idx < 0 || idx >= lists.length - 1} onClick={after(() => onMove(list.id, 1))}>
+        <ListItemIcon><FontAwesomeIcon icon={faArrowDown} /></ListItemIcon>
+        <ListItemText>Move down</ListItemText>
+      </MenuItem>
+      <Divider />
+      <Typography variant="caption" color="text.secondary" sx={{ px: 2, py: 0.5, display: 'block' }}>
+        Sort entries by
+      </Typography>
+      {Object.entries(SORTS).map(([key, { label }]) => {
+        const active = list?.sortKey === key;
+        return (
+          <MenuItem key={key} onClick={() => onSort(list.id, key)}>
+            <ListItemIcon>
+              {active
+                ? <FontAwesomeIcon icon={list.sortDir === 'desc' ? faArrowDown : faArrowUp} />
+                : <FontAwesomeIcon icon={faArrowsUpDown} style={{ opacity: 0.35 }} />}
+            </ListItemIcon>
+            <ListItemText>{label}</ListItemText>
+          </MenuItem>
+        );
+      })}
+      <MenuItem onClick={after(() => onSort(list.id, null))}>
+        <ListItemIcon>{!list?.sortKey && <FontAwesomeIcon icon={faCheck} />}</ListItemIcon>
+        <ListItemText>Manual (as added)</ListItemText>
+      </MenuItem>
+      <Divider />
+      <MenuItem onClick={after(() => onDelete(list.id))} sx={{ color: 'error.main' }}>
+        <ListItemIcon sx={{ color: 'error.main' }}><FontAwesomeIcon icon={faTrashCan} /></ListItemIcon>
+        <ListItemText>Delete list</ListItemText>
+      </MenuItem>
+    </Menu>
   );
 }

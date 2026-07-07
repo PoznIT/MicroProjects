@@ -14,6 +14,8 @@ function toSaved(lists) {
     saved: new Date().toISOString(),
     watchlists: lists.map((l) => ({
       name: l.name,
+      sortKey: l.sortKey ?? null,
+      sortDir: l.sortDir ?? 'asc',
       items: l.items.map((i) => ({
         symbol: i.symbol,
         name: i.name ?? null,
@@ -53,6 +55,8 @@ export function parseSession(text) {
       id: newId(),
       name: typeof l.name === 'string' && l.name.trim() ? l.name : `Watchlist ${idx + 1}`,
       open: true,
+      sortKey: ['score', 'symbol', 'name'].includes(l.sortKey) ? l.sortKey : null,
+      sortDir: l.sortDir === 'desc' ? 'desc' : 'asc',
       items: (Array.isArray(l.items) ? l.items : [])
         .filter((i) => i && typeof i.symbol === 'string' && i.symbol.trim())
         .map((i) => ({
