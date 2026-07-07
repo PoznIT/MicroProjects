@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   WEEK_TARGET, DAY_TARGET, WEEKDAYS,
   timeToH, fmtH, weekKey, weekLabel, workedHours, balanceUpTo, todayISO,
-} from './timepunch-utils.js';
+} from './utils.js';
 import './TimePunch.css';
 
 const STORE_KEY = 'timepunch_days';

@@ -5,11 +5,11 @@ import {
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronRight } from '@fortawesome/free-solid-svg-icons';
-import Watchlist from '../components/Watchlist.jsx';
-import MetricChart from '../components/MetricChart.jsx';
-import { GROUPS, rate, fmtVal, fmtMoney, computeScore, CHIP_COLOR } from './valuescope-score.js';
-import { hasHistory } from './valuescope-history.js';
-import { assetKind } from './valuescope-assets.js';
+import Watchlist from './Watchlist.jsx';
+import MetricChart from './MetricChart.jsx';
+import { GROUPS, rate, fmtVal, fmtMoney, computeScore, CHIP_COLOR } from './score.js';
+import { hasHistory } from './history.js';
+import { assetKind } from './assets.js';
 
 export default function ValueScope() {
   const [inputValue, setInputValue] = useState('');

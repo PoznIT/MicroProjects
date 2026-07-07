@@ -8,9 +8,9 @@ import {
   faChevronDown, faChevronRight, faChevronLeft, faRotate, faPlus, faTrashCan,
   faXmark, faListUl, faFloppyDisk, faFolderOpen,
 } from '@fortawesome/free-solid-svg-icons';
-import { computeScore } from '../pages/valuescope-score.js';
-import { saveSession, parseSession } from '../pages/valuescope-session.js';
-import { assetKind } from '../pages/valuescope-assets.js';
+import { computeScore } from './score.js';
+import { saveSession, parseSession } from './session.js';
+import { assetKind } from './assets.js';
 
 const LS_LISTS = 'vs-watchlists';   // [{ id, name, open, items: [{symbol,name,score,verdict,color}] }]
 const LS_PANEL = 'vs-panel-open';   // 'true' | 'false'
