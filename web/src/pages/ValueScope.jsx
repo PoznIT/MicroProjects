@@ -1,7 +1,7 @@
 import { useState, useRef, Fragment } from 'react';
 import {
   Box, Typography, Paper, TextField, Button, Autocomplete, CircularProgress,
-  Chip, Table, TableBody, TableRow, TableCell, Stack, Alert, Collapse,
+  Chip, Table, TableBody, TableRow, TableCell, Stack, Alert, Collapse, Tooltip,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronRight } from '@fortawesome/free-solid-svg-icons';
@@ -9,6 +9,7 @@ import Watchlist from '../components/Watchlist.jsx';
 import MetricChart from '../components/MetricChart.jsx';
 import { GROUPS, rate, fmtVal, fmtMoney, computeScore, CHIP_COLOR } from './valuescope-score.js';
 import { hasHistory } from './valuescope-history.js';
+import { assetKind } from './valuescope-assets.js';
 
 export default function ValueScope() {
   const [inputValue, setInputValue] = useState('');
@@ -122,13 +123,21 @@ export default function ValueScope() {
           getOptionLabel={(o) => (typeof o === 'string' ? o : o.symbol)}
           isOptionEqualToValue={(o, v) => o.symbol === v.symbol}
           noOptionsText="No matching companies found."
-          renderOption={(props, o) => (
-            <Box component="li" {...props} key={o.symbol}>
-              <Typography sx={{ fontWeight: 600, minWidth: 64 }}>{o.symbol}</Typography>
-              <Typography variant="body2" color="text.secondary" noWrap sx={{ flex: 1, mx: 1 }}>{o.name}</Typography>
-              <Typography variant="caption" color="text.disabled">{o.exchange}</Typography>
-            </Box>
-          )}
+          renderOption={(props, o) => {
+            const kind = assetKind(o.type);
+            return (
+              <Box component="li" {...props} key={o.symbol}>
+                <Tooltip title={kind.title} placement="left">
+                  <Box component="span" sx={{ width: 20, textAlign: 'center', color: 'text.secondary' }}>
+                    <FontAwesomeIcon icon={kind.icon} />
+                  </Box>
+                </Tooltip>
+                <Typography sx={{ fontWeight: 600, minWidth: 60, ml: 1 }}>{o.symbol}</Typography>
+                <Typography variant="body2" color="text.secondary" noWrap sx={{ flex: 1, mx: 1 }}>{o.name}</Typography>
+                <Typography variant="caption" color="text.disabled">{o.exchange}</Typography>
+              </Box>
+            );
+          }}
           renderInput={(params) => (
             <TextField
               {...params}
@@ -158,7 +167,14 @@ export default function ValueScope() {
         <Box sx={{ width: '100%', maxWidth: 860, mt: 3 }}>
           <Paper variant="outlined" sx={{ p: 3, mb: 2, display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
             <Box sx={{ flex: 1, minWidth: 200 }}>
-              <Typography variant="h5" fontWeight={700}>{data.symbol}</Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography variant="h5" fontWeight={700}>{data.symbol}</Typography>
+                <Chip
+                  size="small" variant="outlined"
+                  icon={<FontAwesomeIcon icon={assetKind(data.type).icon} style={{ fontSize: 12 }} />}
+                  label={assetKind(data.type).label}
+                />
+              </Stack>
               <Typography variant="body2">{data.name}</Typography>
               <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
                 {sub}{sub ? <br /> : null}Market cap {fmtMoney(data.marketCap, data.currency)}

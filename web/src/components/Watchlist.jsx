@@ -10,6 +10,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { computeScore } from '../pages/valuescope-score.js';
 import { saveSession, parseSession } from '../pages/valuescope-session.js';
+import { assetKind } from '../pages/valuescope-assets.js';
 
 const LS_LISTS = 'vs-watchlists';   // [{ id, name, open, items: [{symbol,name,score,verdict,color}] }]
 const LS_PANEL = 'vs-panel-open';   // 'true' | 'false'
@@ -27,7 +28,7 @@ const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2
 // Build a stored watchlist item from a full /metrics response.
 function toItem(data) {
   const s = computeScore(data.metrics || {});
-  return { symbol: data.symbol, name: data.name, score: s.score, verdict: s.verdict, color: s.color };
+  return { symbol: data.symbol, name: data.name, type: data.type, score: s.score, verdict: s.verdict, color: s.color };
 }
 
 export default function Watchlist({ current, onSelect }) {
@@ -266,6 +267,11 @@ export default function Watchlist({ current, onSelect }) {
                           '&:hover .rm': { opacity: 1 },
                         }}
                       >
+                        <Tooltip title={assetKind(item.type).title} placement="left">
+                          <Box component="span" sx={{ width: 16, textAlign: 'center', color: 'text.secondary', flexShrink: 0 }}>
+                            <FontAwesomeIcon icon={assetKind(item.type).icon} size="sm" />
+                          </Box>
+                        </Tooltip>
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                           <Typography variant="body2" fontWeight={700} lineHeight={1.2}>{item.symbol}</Typography>
                           <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
