@@ -11,8 +11,12 @@ ValueScope `/valuescope`) on a shared stack behind an nginx auth proxy.
   External tools are spawned: `yt-dlp`, and `app/tools/{fetch,search}.py`
   (`yfinance`). uvicorn :8000.
 - **Frontend** — Vite + React, `web/`. App shell `src/App.jsx` (react-router);
-  one page per tool in `src/pages/`. Theme tokens in `src/styles/theme.css`
-  (`localStorage` key `mp-theme`). Built static, served by nginx (SPA fallback).
+  shared chrome (e.g. `TopBar`) in `src/components/`. One folder per tool in
+  `src/features/<tool>/` with a `<Tool>.jsx` entry + `<Tool>.css`; as a tool
+  grows, put presentational pieces in `components/`, state/fetching in `hooks/`,
+  and pure logic (no React/MUI, so it stays testable/portable) in `lib/`. Theme
+  tokens in `src/styles/theme.css` (`localStorage` key `mp-theme`). Built static,
+  served by nginx (SPA fallback).
 - **Auth** — `infra/auth/` (Node/Express): HMAC `mp_session` cookie, `/login`,
   `/logout`, `/verify`.
 - **Gateway** — `infra/nginx/nginx.conf`: routes `/api/*` → api, else → web;
