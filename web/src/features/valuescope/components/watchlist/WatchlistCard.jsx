@@ -11,7 +11,7 @@ import WatchlistItem from './WatchlistItem.jsx';
 // mutation flows through callbacks provided by the panel.
 export default function WatchlistCard({
   list, current, editing, setEditing, onToggle, onCommitRename,
-  onAddCurrent, onRemoveItem, onSelect, onOpenMenu,
+  onAddCurrent, onRemoveItem, onSelect, onOpenMenu, onResolve,
 }) {
   const inList = current && list.items.some(i => i.symbol === current.symbol);
   const editingThis = editing?.id === list.id;
@@ -84,6 +84,7 @@ export default function WatchlistCard({
                 item={item}
                 onSelect={onSelect}
                 onRemove={(symbol) => onRemoveItem(list.id, symbol)}
+                onResolve={onResolve ? (it) => onResolve(list.id, it) : undefined}
               />
             ))}
           </Stack>

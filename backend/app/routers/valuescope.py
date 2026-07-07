@@ -30,3 +30,11 @@ async def search(q: str = Query(..., min_length=1, max_length=64)):
     if not valid_query(query):
         raise api_error(400, "Enter a company name or ticker.")
     return await run_python_tool("search.py", query)
+
+
+@router.get("/ibkr/holdings")
+async def ibkr_holdings():
+    # No user input: the tool reads the Flex token/query id from the server
+    # environment, so there's nothing to validate or inject here. Talking to
+    # IBKR (send request → poll for the statement) can take a few seconds.
+    return await run_python_tool("ibkr.py", timeout=45.0)

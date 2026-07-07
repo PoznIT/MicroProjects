@@ -8,8 +8,9 @@ ValueScope `/valuescope`) on a shared stack behind an nginx auth proxy.
 - **Backend** — FastAPI (Python 3.12), `backend/`. One router per tool under
   `/api/<tool>/…` (`backend/app/routers/`). Shared validation, injection guard,
   `{"error": …}` envelope, and subprocess runner live in `app/common.py`.
-  External tools are spawned: `yt-dlp`, and `app/tools/{fetch,search}.py`
-  (`yfinance`). uvicorn :8000.
+  External tools are spawned: `yt-dlp`, and `app/tools/{fetch,search,history}.py`
+  (`yfinance`) plus `app/tools/ibkr.py` (IBKR Flex Web Service, stdlib-only;
+  reads `IBKR_FLEX_TOKEN`/`IBKR_FLEX_QUERY_ID` from env). uvicorn :8000.
 - **Frontend** — Vite + React, `web/`. App shell `src/App.jsx` (react-router);
   shared chrome (e.g. `TopBar`) in `src/components/`. One folder per tool in
   `src/features/<tool>/` with a `<Tool>.jsx` entry + `<Tool>.css`; as a tool

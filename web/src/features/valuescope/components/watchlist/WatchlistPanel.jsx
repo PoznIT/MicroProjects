@@ -6,6 +6,7 @@ import WatchlistToolbar from './WatchlistToolbar.jsx';
 import CreateListBox from './CreateListBox.jsx';
 import WatchlistCard from './WatchlistCard.jsx';
 import ListMenu from './ListMenu.jsx';
+import ResolveDialog from './ResolveDialog.jsx';
 
 // Docked full-height pane on the left, just below the fixed app bar. Owns the
 // watchlist state via useWatchlists and composes the rail, toolbar, create box,
@@ -15,10 +16,11 @@ const APPBAR = 48; // dense MUI Toolbar height
 
 export default function WatchlistPanel({ current, onSelect }) {
   const {
-    lists, panelOpen, setPanelOpen, refreshing, totalItems,
+    lists, panelOpen, setPanelOpen, refreshing, importing, totalItems,
     newName, setNewName, notice, setNotice, editing, setEditing, menu, setMenu,
+    resolving, setResolving,
     createList, deleteList, toggleList, commitRename, moveList, setSort,
-    removeItem, addCurrent, refreshAll, loadSession,
+    removeItem, addCurrent, refreshAll, importFromIbkr, resolveItem, loadSession,
   } = useWatchlists();
 
   return (
@@ -37,6 +39,8 @@ export default function WatchlistPanel({ current, onSelect }) {
           <WatchlistToolbar
             totalItems={totalItems}
             refreshing={refreshing}
+            importing={importing}
+            onImportIbkr={importFromIbkr}
             onRefresh={refreshAll}
             onSave={() => saveSession(lists)}
             onLoadFile={loadSession}
@@ -68,6 +72,7 @@ export default function WatchlistPanel({ current, onSelect }) {
                 onRemoveItem={removeItem}
                 onSelect={onSelect}
                 onOpenMenu={(anchorEl, id) => setMenu({ anchorEl, id })}
+                onResolve={(id, item) => setResolving({ listId: id, item })}
               />
             ))}
           </Box>
@@ -80,6 +85,12 @@ export default function WatchlistPanel({ current, onSelect }) {
             onMove={moveList}
             onSort={setSort}
             onDelete={deleteList}
+          />
+
+          <ResolveDialog
+            item={resolving?.item}
+            onClose={() => setResolving(null)}
+            onResolve={(pick) => resolveItem(resolving.listId, resolving.item.symbol, pick)}
           />
         </Paper>
       </Collapse>
