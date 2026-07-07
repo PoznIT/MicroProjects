@@ -4,10 +4,10 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { getTheme } from './mui-theme.js';
 import TopBar from './components/TopBar.jsx';
-import Home from './pages/Home.jsx';
-import ValueScope from './pages/ValueScope.jsx';
-import YTAudio from './pages/YTAudio.jsx';
-import TimePunch from './pages/TimePunch.jsx';
+import Home from './features/home/Home.jsx';
+import ValueScope from './features/valuescope/ValueScope.jsx';
+import YTAudio from './features/ytaudio/YTAudio.jsx';
+import TimePunch from './features/timepunch/TimePunch.jsx';
 
 export default function App() {
   const [mode, setMode] = useState(() => localStorage.getItem('mp-theme') || 'dark');
