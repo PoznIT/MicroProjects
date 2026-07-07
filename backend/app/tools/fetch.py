@@ -77,9 +77,14 @@ def main():
     if div_raw is not None:
         dividend_yield = div_raw / 100.0 if div_raw > 1 else div_raw
 
+    # Asset class — "ETF", "EQUITY", "MUTUALFUND", etc. Lets the UI tell a fund
+    # apart from an individual company (their fundamentals differ).
+    quote_type = (info.get("quoteType") or "").upper() or None
+
     result = {
         "symbol": symbol,
         "name": name or symbol,
+        "type": quote_type,
         "sector": info.get("sector"),
         "industry": info.get("industry"),
         "price": price,
