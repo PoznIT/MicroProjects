@@ -34,13 +34,16 @@ Gateway/TWS needs to run, and no trading permission is granted. Data is
 end-of-day (it reflects the prior close).
 
 You provide two values, `IBKR_FLEX_TOKEN` and `IBKR_FLEX_QUERY_ID`, in `.env`.
-To generate them, sign in to the IBKR **Client Portal**
-(<https://www.interactivebrokers.com> → Login → Portal):
+To generate them, sign in to the web **Client Portal**
+(<https://www.interactivebrokers.com> → Login → Portal). Flex Queries live under
+**Performance & Reports**, not the Settings gear, and are web-only — they don't
+appear in the mobile app or TWS.
 
 **1. Create the Flex Query (the report definition → `IBKR_FLEX_QUERY_ID`)**
 
-1. Go to **Settings → Account Reporting → Flex Queries**.
-2. Next to **Activity Flex Query**, click the **+** to create a new one.
+1. Go to **Performance & Reports → Flex Queries** (or **Menu ☰ → Reporting →
+   Flex Queries**).
+2. In the **Activity Flex Query** panel, click the **+** to create a new one.
 3. Give it a name (e.g. `ValueScope Positions`).
 4. Open the **Sections** list and enable **Open Positions**. Choose the
    summary option (not lot-level) and tick at least these fields:
@@ -53,7 +56,8 @@ To generate them, sign in to the IBKR **Client Portal**
 
 **2. Generate the Flex Web Service token (→ `IBKR_FLEX_TOKEN`)**
 
-1. Go to **Settings → Account Reporting → Flex Web Service**.
+1. Go to **Performance & Reports → Settings → Flex Web Service** (same
+   Performance & Reports area as the Flex Queries).
 2. Toggle the status to **Enabled** (may prompt for 2FA).
 3. Click **Generate New Token** and copy it. The token is valid for up to a
    year; regenerate before it expires. Treat it like a password — it grants
