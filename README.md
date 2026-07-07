@@ -76,7 +76,9 @@ in the watchlist panel header to import. If the two variables are left blank the
 button simply reports that IBKR isn't configured.
 
 > Note: foreign (non-US) listings that Yahoo Finance can't resolve without an
-> exchange suffix are imported but may stay unscored.
+> exchange suffix are imported but may stay unscored. Any unscored entry shows a
+> **link** button — click it, search for the matching listing (e.g. `ASML.AS`),
+> and pick it to re-point the entry and score it. The position you hold is kept.
 
 ### Frontend dev server (optional)
 

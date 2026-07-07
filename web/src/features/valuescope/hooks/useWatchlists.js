@@ -17,6 +17,7 @@ export function useWatchlists() {
   const [notice, setNotice] = useState(null); // { error, text }
   const [editing, setEditing] = useState(null); // { id, name } while renaming a list
   const [menu, setMenu] = useState(null);       // { anchorEl, id } for a list's actions menu
+  const [resolving, setResolving] = useState(null); // { listId, item } while manually linking an unscored entry
 
   useEffect(() => { localStorage.setItem(LS_LISTS, JSON.stringify(lists)); }, [lists]);
   useEffect(() => { localStorage.setItem(LS_PANEL, String(panelOpen)); }, [panelOpen]);
@@ -102,6 +103,31 @@ export function useWatchlists() {
     setRefreshing(false);
   }
 
+  // Manually re-point an unscored entry (typically an IBKR holding whose symbol
+  // Yahoo couldn't resolve) at a real listing the user picked from search: swap
+  // in the match's symbol/name/type, keep the position, then score it. toItem
+  // omits position, so the follow-up scoring leaves the holding data intact.
+  async function resolveItem(listId, oldSymbol, pick) {
+    setResolving(null);
+    const symbol = (pick?.symbol || '').trim().toUpperCase();
+    if (!symbol) return;
+    const list = lists.find(l => l.id === listId);
+    if (!list || !list.items.some(i => i.symbol === oldSymbol)) return;
+    if (symbol !== oldSymbol && list.items.some(i => i.symbol === symbol)) {
+      setNotice({ error: true, text: `${symbol} is already in this list.` });
+      return;
+    }
+    setLists(ls => ls.map(l => l.id !== listId ? l : {
+      ...l,
+      items: l.items.map(it => it.symbol === oldSymbol
+        ? { ...it, symbol, name: pick.name || symbol, type: pick.type || it.type }
+        : it),
+    }));
+    setNotice({ error: false, text: `Linked ${oldSymbol} → ${symbol} — scoring…` });
+    applyItems(await fetchItems([symbol]));
+    setNotice({ error: false, text: `Linked ${oldSymbol} → ${symbol}.` });
+  }
+
   // Pull the account's open positions from IBKR, (re)build the "IBKR Holdings"
   // list from them, then score each symbol through the usual metrics pipeline.
   // fetchItems returns plain scored items (no position), so spreading them over
@@ -162,7 +188,8 @@ export function useWatchlists() {
   return {
     lists, panelOpen, setPanelOpen, refreshing, importing, totalItems,
     newName, setNewName, notice, setNotice, editing, setEditing, menu, setMenu,
+    resolving, setResolving,
     createList, deleteList, toggleList, commitRename, moveList, setSort,
-    removeItem, addCurrent, refreshAll, importFromIbkr, loadSession,
+    removeItem, addCurrent, refreshAll, importFromIbkr, resolveItem, loadSession,
   };
 }

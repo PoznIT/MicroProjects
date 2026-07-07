@@ -1,12 +1,15 @@
 import { Box, Typography, Chip, IconButton, Tooltip } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faXmark, faLink } from '@fortawesome/free-solid-svg-icons';
 import { assetKind } from '../../lib/assets.js';
 import { fmtPosition } from '../../lib/watchlist.js';
 
 // One symbol row inside a watchlist: asset-class icon, symbol/name, score chip,
 // and a hover-revealed remove button. Clicking the row re-analyzes the symbol.
-export default function WatchlistItem({ item, onSelect, onRemove }) {
+// Entries that couldn't be scored (no metrics for the symbol) get a persistent
+// "link" button to manually resolve them to a real listing via onResolve.
+export default function WatchlistItem({ item, onSelect, onRemove, onResolve }) {
+  const unresolved = onResolve && item.score == null;
   return (
     <Box
       onClick={() => onSelect?.(item.symbol)}
@@ -33,6 +36,16 @@ export default function WatchlistItem({ item, onSelect, onRemove }) {
         )}
       </Box>
       <Chip size="small" color={item.color} label={item.score ?? '…'} sx={{ minWidth: 44 }} />
+      {unresolved && (
+        <Tooltip title="Couldn't score this — link it to a listing">
+          <IconButton
+            size="small" color="warning"
+            onClick={(e) => { e.stopPropagation(); onResolve(item); }}
+          >
+            <FontAwesomeIcon icon={faLink} size="xs" />
+          </IconButton>
+        </Tooltip>
+      )}
       <IconButton
         className="rm" size="small"
         onClick={(e) => { e.stopPropagation(); onRemove(item.symbol); }}
