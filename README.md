@@ -133,9 +133,13 @@ You can reuse the query from above (or make a second one). It must have:
 **3. Import it**
 
 On the Portfolio page click **Import trades CSV** and pick the file. The app
-reports how many new trades it added versus how many were already present. The
-trades land in the server-side log and show up on each symbol's position page
-(entry ▲ / exit ▼ markers and per-trade FIFO returns), exactly like API imports.
+reads only the **Trades** section (any Open Positions block is ignored) and
+imports its stock/ETF rows — cash/forex, options and other asset classes are
+skipped automatically, so it's fine to feed it the same combined query you use
+for holdings. It reports how many new trades it added versus how many were
+already present. The trades land in the server-side log and show up on each
+symbol's position page (entry ▲ / exit ▼ markers and per-trade FIFO returns),
+exactly like API imports.
 
 > Note: foreign (non-US) listings that Yahoo Finance can't resolve without an
 > exchange suffix are imported but may stay unscored. Any unscored entry shows a
