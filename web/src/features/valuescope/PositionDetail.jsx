@@ -124,9 +124,23 @@ export default function PositionDetail() {
         <Paper variant="outlined" sx={{ p: 3, mb: 2 }}>
           <Stack direction="row" spacing={1} alignItems="baseline" sx={{ mb: 1.5 }}>
             <Typography variant="h5" fontWeight={700}>{symbol}</Typography>
-            <Typography variant="body2" color="text.secondary" noWrap>
+            <Typography variant="body2" color="text.secondary" noWrap sx={{ flexGrow: 1 }}>
               {analysis.data?.symbol === symbol ? analysis.data.name : holding?.name || ''}
             </Typography>
+            {/* Always available for a held symbol: IBKR's ticker sometimes maps
+                to the wrong Yahoo listing (right ticker, wrong exchange/company),
+                and that mis-link still scores, so it never trips the "unresolved"
+                banner. Let the user re-point it whenever they spot it. */}
+            {holding && !unresolved && (
+              <Button
+                size="small" color="inherit"
+                startIcon={<FontAwesomeIcon icon={faLink} size="xs" />}
+                onClick={() => setRelinking(true)}
+                sx={{ alignSelf: 'center', flexShrink: 0 }}
+              >
+                Relink
+              </Button>
+            )}
           </Stack>
 
           {hasTrades ? (
