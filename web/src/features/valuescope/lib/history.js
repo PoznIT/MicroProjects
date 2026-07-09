@@ -35,6 +35,24 @@ function priceNow(history) {
   return p && p.length ? p[p.length - 1].c : null;
 }
 
+// The raw close series [{t, c}] clipped to a range — the position price chart
+// plots this directly (no metric reconstruction involved).
+export function priceSeries(history, rangeDays) {
+  return inRange(history?.price || [], rangeDays);
+}
+
+// X-axis tick label for a chart date, coarser as the range widens.
+export function tickDate(t, rangeDays) {
+  const d = new Date(t + 'T00:00:00');
+  if (rangeDays <= 186) {
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+  if (rangeDays <= 1097) {
+    return d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+  }
+  return String(d.getFullYear());
+}
+
 // The series for one metric at one range, as [{ t, v }] sorted ascending.
 export function buildSeries(metric, rangeDays, history, currentValue) {
   if (!history) return [];

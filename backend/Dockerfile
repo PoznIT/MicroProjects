@@ -25,8 +25,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 
+# Persistent data (ValueScope trade log) — the mount point must exist and be
+# owned by the runtime user before USER drops privileges, because a named
+# volume inherits the image's ownership on first mount.
+ENV VS_DATA_DIR=/data
+RUN mkdir -p /data
+
 # Unprivileged runtime user
-RUN useradd -r -s /usr/sbin/nologin app && chown -R app:app /app
+RUN useradd -r -s /usr/sbin/nologin app && chown -R app:app /app /data
 USER app
 
 EXPOSE 8000

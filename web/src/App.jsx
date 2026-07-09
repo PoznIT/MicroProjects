@@ -5,7 +5,9 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { getTheme } from './mui-theme.js';
 import TopBar from './components/TopBar.jsx';
 import Home from './features/home/Home.jsx';
-import ValueScope from './features/valuescope/ValueScope.jsx';
+import ValueScopeLayout from './features/valuescope/ValueScopeLayout.jsx';
+import PortfolioView from './features/valuescope/PortfolioView.jsx';
+import PositionDetail from './features/valuescope/PositionDetail.jsx';
 import YTAudio from './features/ytaudio/YTAudio.jsx';
 import TimePunch from './features/timepunch/TimePunch.jsx';
 
@@ -26,7 +28,10 @@ export default function App() {
       {!ownsHeader && <TopBar mode={mode} toggle={toggle} />}
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/valuescope" element={<ValueScope />} />
+        <Route path="/valuescope" element={<ValueScopeLayout />}>
+          <Route index element={<PortfolioView />} />
+          <Route path="position/:symbol" element={<PositionDetail />} />
+        </Route>
         <Route path="/ytaudio" element={<YTAudio />} />
         <Route path="/timepunch" element={<TimePunch mode={mode} toggle={toggle} />} />
         <Route path="*" element={<Home />} />

@@ -8,7 +8,7 @@ frontend** (Vite), behind an nginx auth proxy.
 
 - **TimePunch** (`/timepunch`) — time tracker: punch in/out, CSV import/export, weekly balance against a 42h target. Fully client-side (browser localStorage).
 - **YTAudio** (`/ytaudio`) — download the audio track from any YouTube video; best original quality or MP3 320k / FLAC. Backed by `yt-dlp`.
-- **ValueScope** (`/valuescope`) — enter a ticker (or search by company name) and get a color-coded value-investing dashboard with a composite 0–100 score. Backed by `yfinance`, no API key. Optionally imports the stocks you own from Interactive Brokers into a watchlist (see [Importing IBKR holdings](#importing-ibkr-holdings-valuescope)).
+- **ValueScope** (`/valuescope`) — portfolio & position analysis: import your Interactive Brokers holdings and trades, see every position's price history with your entries (▲) and exits (▼) marked, and judge each trade on its own return (FIFO lot matching). Any ticker also gets a color-coded value-investing read with a composite 0–100 score. Backed by `yfinance`, no API key (see [Importing IBKR holdings & trades](#importing-ibkr-holdings--trades-valuescope)).
 
 ## Running locally
 
@@ -25,13 +25,21 @@ docker compose up --build
 # 3. Open http://localhost:8080
 ```
 
-### Importing IBKR holdings (ValueScope)
+### Importing IBKR holdings & trades (ValueScope)
 
-ValueScope can pull the stocks/ETFs you hold at **Interactive Brokers** into an
-"IBKR Holdings" watchlist and score each one. It uses IBKR's **Flex Web
-Service** — a read-only, token-based HTTPS report of your positions. No IB
-Gateway/TWS needs to run, and no trading permission is granted. Data is
-end-of-day (it reflects the prior close).
+ValueScope can pull the stocks/ETFs you hold at **Interactive Brokers** into
+its Portfolio view — and, when your Flex Query includes the **Trades** section,
+your executions too, so each position's chart shows your entry/exit points and
+each trade gets its own return. It uses IBKR's **Flex Web Service** — a
+read-only, token-based HTTPS report. No IB Gateway/TWS needs to run, and no
+trading permission is granted. Data is end-of-day (it reflects the prior
+close).
+
+Imported trades are stored server-side (the `vs-data` Docker volume) and
+accumulate across imports: each import merges new executions (deduplicated by
+IBKR trade ID) into the existing log, so history older than the report window
+is never lost. A Flex report reaches back at most **365 days** — trades older
+than that can be added by hand on the position page (**Add trade**).
 
 You provide two values, `IBKR_FLEX_TOKEN` and `IBKR_FLEX_QUERY_ID`, in `.env`.
 To generate them, sign in to the web **Client Portal**
@@ -49,9 +57,17 @@ appear in the mobile app or TWS.
    summary option (not lot-level) and tick at least these fields:
    `Symbol`, `Quantity` (Position), `Cost Basis Price`, `Cost Basis Money`,
    `Currency`, `Asset Class` (assetCategory), `Listing Exchange`.
-5. Under **Delivery Configuration / General**, set **Format = XML** and
-   **Period = Last Business Day** (or "As of today").
-6. **Save**. Back on the Flex Queries page, note the **Query ID** shown next to
+5. Also enable the **Trades** section — this is what feeds the per-trade
+   analysis. Choose **Executions** as the level of detail and tick at least:
+   `Trade ID`, `Trade Date`, `Date/Time`, `Symbol`, `Buy/Sell`, `Quantity`,
+   `Trade Price`, `IB Commission`, `Currency`, `Asset Class`. (`Date/Time`
+   keeps same-day fills in the right FIFO order.) Without this section the
+   import still works, positions-only.
+6. Under **Delivery Configuration / General**, set **Format = XML** and
+   **Period = Last 365 Calendar Days** (the maximum — Open Positions always
+   reflects your current holdings regardless of the period; the period governs
+   how far back the Trades section reaches).
+7. **Save**. Back on the Flex Queries page, note the **Query ID** shown next to
    it — that's your `IBKR_FLEX_QUERY_ID`.
 
 **2. Generate the Flex Web Service token (→ `IBKR_FLEX_TOKEN`)**
@@ -71,14 +87,21 @@ IBKR_FLEX_TOKEN=your-generated-token
 IBKR_FLEX_QUERY_ID=123456
 ```
 
-Rebuild/restart the `api` service, open ValueScope, and click the **bank icon**
-in the watchlist panel header to import. If the two variables are left blank the
-button simply reports that IBKR isn't configured.
+Rebuild/restart the `api` service, open ValueScope, and click **Import from
+IBKR** on the Portfolio page (or the bank icon in the watchlist panel). If the
+two variables are left blank the button simply reports that IBKR isn't
+configured.
 
 > Note: foreign (non-US) listings that Yahoo Finance can't resolve without an
 > exchange suffix are imported but may stay unscored. Any unscored entry shows a
 > **link** button — click it, search for the matching listing (e.g. `ASML.AS`),
 > and pick it to re-point the entry and score it. The position you hold is kept.
+
+> Splits caveat: chart prices from Yahoo are split-adjusted, while imported
+> trade prices are your raw fills. After a split, old entries can sit far off
+> the price line and lot returns can look wrong; the position page warns when
+> the reconstructed share count disagrees with what IBKR reports. Edit the old
+> trades (adjust quantity/price by the split ratio) to reconcile.
 
 ### Frontend dev server (optional)
 

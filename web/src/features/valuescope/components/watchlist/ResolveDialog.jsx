@@ -61,8 +61,13 @@ export default function ResolveDialog({ item, onClose, onResolve }) {
       </DialogTitle>
       <DialogContent sx={{ pt: '8px !important' }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-          Couldn&rsquo;t score &ldquo;{item?.symbol}&rdquo;. Search for the matching
-          listing to link it — the position you hold is kept and re-scored.
+          {item?.score == null ? (
+            <>Couldn&rsquo;t score &ldquo;{item?.symbol}&rdquo;. Search for the matching
+              listing to link it — the position you hold is kept and re-scored.</>
+          ) : (
+            <>&ldquo;{item?.symbol}&rdquo; looks linked to the wrong listing? Search for the
+              right one to re-point it — the position you hold is kept and re-scored.</>
+          )}
         </Typography>
         <Autocomplete
           freeSolo

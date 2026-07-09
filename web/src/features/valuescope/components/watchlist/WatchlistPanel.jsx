@@ -1,6 +1,5 @@
 import { Box, Paper, Typography, Collapse, Divider } from '@mui/material';
 import { saveSession } from '../../lib/session.js';
-import { useWatchlists } from '../../hooks/useWatchlists.js';
 import WatchlistRail from './WatchlistRail.jsx';
 import WatchlistToolbar from './WatchlistToolbar.jsx';
 import CreateListBox from './CreateListBox.jsx';
@@ -8,20 +7,20 @@ import WatchlistCard from './WatchlistCard.jsx';
 import ListMenu from './ListMenu.jsx';
 import ResolveDialog from './ResolveDialog.jsx';
 
-// Docked full-height pane on the left, just below the fixed app bar. Owns the
-// watchlist state via useWatchlists and composes the rail, toolbar, create box,
-// list cards and the per-list actions menu. `current` is the symbol being
-// analyzed (add target); onSelect re-analyzes a clicked entry.
+// Docked full-height pane on the left, just below the fixed app bar. Purely
+// presentational: `store` is the one useWatchlists() instance, owned by
+// ValueScopeLayout so the panel survives route changes. `current` is the
+// symbol being analyzed (add target); onSelect opens a clicked entry.
 const APPBAR = 48; // dense MUI Toolbar height
 
-export default function WatchlistPanel({ current, onSelect }) {
+export default function WatchlistPanel({ store, current, onSelect }) {
   const {
     lists, panelOpen, setPanelOpen, refreshing, importing, totalItems,
     newName, setNewName, notice, setNotice, editing, setEditing, menu, setMenu,
     resolving, setResolving,
     createList, deleteList, toggleList, commitRename, moveList, setSort,
     removeItem, addCurrent, refreshAll, importFromIbkr, resolveItem, loadSession,
-  } = useWatchlists();
+  } = store;
 
   return (
     <Box sx={{

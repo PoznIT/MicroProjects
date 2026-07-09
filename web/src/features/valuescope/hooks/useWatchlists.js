@@ -107,15 +107,17 @@ export function useWatchlists() {
   // Yahoo couldn't resolve) at a real listing the user picked from search: swap
   // in the match's symbol/name/type, keep the position, then score it. toItem
   // omits position, so the follow-up scoring leaves the holding data intact.
+  // Returns whether the swap actually happened, so callers (e.g. the position
+  // page, which also moves the trade log) know whether to follow through.
   async function resolveItem(listId, oldSymbol, pick) {
     setResolving(null);
     const symbol = (pick?.symbol || '').trim().toUpperCase();
-    if (!symbol) return;
+    if (!symbol) return false;
     const list = lists.find(l => l.id === listId);
-    if (!list || !list.items.some(i => i.symbol === oldSymbol)) return;
+    if (!list || !list.items.some(i => i.symbol === oldSymbol)) return false;
     if (symbol !== oldSymbol && list.items.some(i => i.symbol === symbol)) {
       setNotice({ error: true, text: `${symbol} is already in this list.` });
-      return;
+      return false;
     }
     setLists(ls => ls.map(l => l.id !== listId ? l : {
       ...l,
@@ -126,18 +128,21 @@ export function useWatchlists() {
     setNotice({ error: false, text: `Linked ${oldSymbol} → ${symbol} — scoring…` });
     applyItems(await fetchItems([symbol]));
     setNotice({ error: false, text: `Linked ${oldSymbol} → ${symbol}.` });
+    return true;
   }
 
-  // Pull the account's open positions from IBKR, (re)build the "IBKR Holdings"
-  // list from them, then score each symbol through the usual metrics pipeline.
-  // fetchItems returns plain scored items (no position), so spreading them over
-  // the seeded holdings keeps each entry's position intact.
+  // Pull the account's open positions (and, when the Flex query carries them,
+  // its executions — merged server-side into the trade log) from IBKR,
+  // (re)build the "IBKR Holdings" list, then score each symbol through the
+  // usual metrics pipeline. fetchItems returns plain scored items (no
+  // position), so spreading them over the seeded holdings keeps each entry's
+  // position intact.
   async function importFromIbkr() {
     if (importing || refreshing) return;
     setImporting(true);
     setNotice({ error: false, text: 'Fetching holdings from IBKR…' });
     try {
-      const r = await fetch('/api/valuescope/ibkr/holdings');
+      const r = await fetch('/api/valuescope/ibkr/import', { method: 'POST' });
       const j = await r.json();
       if (!r.ok || j.error) throw new Error(j.error || 'Request failed');
 
@@ -154,9 +159,13 @@ export function useWatchlists() {
       ]);
 
       const asOf = j.asOf ? ` (as of ${j.asOf})` : '';
-      setNotice({ error: false, text: `Imported ${positions.length} holding(s) from IBKR${asOf} — scoring…` });
+      const trades = j.tradesImported
+        ? `, ${j.tradesImported} new trade(s)`
+        : (j.tradesDuplicate ? ', no new trades' : '');
+      const summary = `Imported ${positions.length} holding(s)${trades} from IBKR${asOf}`;
+      setNotice({ error: false, text: `${summary} — scoring…` });
       applyItems(await fetchItems([...new Set(seeded.map(i => i.symbol))]));
-      setNotice({ error: false, text: `Imported ${positions.length} holding(s) from IBKR${asOf}.` });
+      setNotice({ error: false, text: `${summary}.` });
     } catch (err) {
       setNotice({ error: true, text: 'IBKR import failed — ' + (err.message || 'unknown error.') });
     } finally {
