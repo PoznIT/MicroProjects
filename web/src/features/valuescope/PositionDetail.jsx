@@ -4,10 +4,13 @@ import {
   CircularProgress, Paper, Stack, Typography,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faChevronDown, faPlus } from '@fortawesome/free-solid-svg-icons';
-import { Link as RouterLink, useOutletContext, useParams } from 'react-router-dom';
+import { faArrowLeft, faChevronDown, faLink, faPlus } from '@fortawesome/free-solid-svg-icons';
+import {
+  Link as RouterLink, useNavigate, useOutletContext, useParams,
+} from 'react-router-dom';
 import SummaryCard from './components/SummaryCard.jsx';
 import MetricsTable from './components/MetricsTable.jsx';
+import ResolveDialog from './components/watchlist/ResolveDialog.jsx';
 import PriceChart from './components/position/PriceChart.jsx';
 import TradeTable from './components/position/TradeTable.jsx';
 import TradeDialog from './components/position/TradeDialog.jsx';
@@ -46,9 +49,11 @@ export default function PositionDetail() {
   const { symbol: raw } = useParams();
   const symbol = decodeURIComponent(raw || '').trim().toUpperCase();
   const { watchlists, analysis } = useOutletContext();
+  const navigate = useNavigate();
   const pos = usePosition(symbol);
   const [dialog, setDialog] = useState(null); // { trade } — trade null = add
   const [valOpen, setValOpen] = useState(null); // null = auto until toggled
+  const [relinking, setRelinking] = useState(false);
 
   // Feed the shared analysis (valuation section + watchlist add target).
   useEffect(() => {
@@ -60,6 +65,31 @@ export default function PositionDetail() {
   const holding = holdings?.items.find((it) => it.symbol === symbol);
   const ibkrPosition = holding?.position || null;
   const currency = ibkrPosition?.currency || analysis.data?.currency || 'USD';
+  // Typically a foreign listing IBKR reports under a symbol Yahoo Finance
+  // doesn't recognize as-is (needs an exchange suffix, or a city/market
+  // qualifier to disambiguate). Mirrors WatchlistItem's own "unresolved" check.
+  const unresolved = !!holding && holding.score == null;
+
+  // Re-point this holding at the listing the user actually meant: update the
+  // watchlist entry (existing flow) and move the trade log to follow it, then
+  // land on the corrected symbol's own page.
+  async function handleRelink(pick) {
+    const target = (pick?.symbol || '').trim().toUpperCase();
+    setRelinking(false);
+    if (!target || !holdings) return;
+    const linked = await watchlists.resolveItem(holdings.id, symbol, pick);
+    if (!linked) return; // e.g. target symbol already tracked elsewhere — notice already shown
+    if (target !== symbol && pos.trades.length > 0) {
+      try {
+        await fetch('/api/valuescope/trades/relink', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from_symbol: symbol, to_symbol: target }),
+        });
+      } catch { /* watchlist relink still succeeded; trade log stays under the old symbol */ }
+    }
+    if (target !== symbol) navigate(`/valuescope/position/${encodeURIComponent(target)}`, { replace: true });
+  }
 
   const { summary, warnings } = pos.performance;
   const hasTrades = pos.trades.length > 0;
@@ -132,12 +162,32 @@ export default function PositionDetail() {
           )}
         </Paper>
 
+        {unresolved && (
+          <Alert
+            severity="warning" variant="outlined" sx={{ mb: 2 }}
+            action={(
+              <Button color="inherit" size="small"
+                startIcon={<FontAwesomeIcon icon={faLink} size="xs" />}
+                onClick={() => setRelinking(true)}
+              >
+                Relink
+              </Button>
+            )}
+          >
+            Couldn&rsquo;t score &ldquo;{symbol}&rdquo; — Yahoo Finance doesn&rsquo;t recognize
+            this ticker as-is (common for foreign listings that need an exchange suffix or a
+            specific market). Link it to the correct listing to value it and keep this
+            position&rsquo;s trade log attached.
+          </Alert>
+        )}
+
         {(mismatch || warnings.includes('orphan-sells')) && (
           <Alert severity="warning" variant="outlined" sx={{ mb: 2 }}>
             {mismatch && (
               <>Your trade log reconstructs {summary.openQty.toLocaleString()} share(s) but IBKR
               reports {ibkrPosition.quantity.toLocaleString()} — the log is probably missing older
-              trades (or a stock split). Add the missing trades below. </>
+              trades. (Splits are adjusted for automatically, so this isn't a split issue unless
+              yfinance is missing one.) Add the missing trades below. </>
             )}
             {warnings.includes('orphan-sells')
               && 'Some sells have no matching buy on record; their returns are shown as unknown.'}
@@ -157,7 +207,7 @@ export default function PositionDetail() {
             </Typography>
           )}
           {pos.historyState === 'ready' && (
-            <PriceChart history={pos.history} trades={pos.trades} currency={currency} />
+            <PriceChart history={pos.history} trades={pos.adjustedTrades} currency={currency} />
           )}
         </Paper>
 
@@ -254,6 +304,12 @@ export default function PositionDetail() {
         saving={pos.saving}
         onClose={() => setDialog(null)}
         onSave={saveTrade}
+      />
+
+      <ResolveDialog
+        item={relinking ? holding : null}
+        onClose={() => setRelinking(false)}
+        onResolve={handleRelink}
       />
     </Box>
   );

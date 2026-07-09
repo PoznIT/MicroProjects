@@ -107,15 +107,17 @@ export function useWatchlists() {
   // Yahoo couldn't resolve) at a real listing the user picked from search: swap
   // in the match's symbol/name/type, keep the position, then score it. toItem
   // omits position, so the follow-up scoring leaves the holding data intact.
+  // Returns whether the swap actually happened, so callers (e.g. the position
+  // page, which also moves the trade log) know whether to follow through.
   async function resolveItem(listId, oldSymbol, pick) {
     setResolving(null);
     const symbol = (pick?.symbol || '').trim().toUpperCase();
-    if (!symbol) return;
+    if (!symbol) return false;
     const list = lists.find(l => l.id === listId);
-    if (!list || !list.items.some(i => i.symbol === oldSymbol)) return;
+    if (!list || !list.items.some(i => i.symbol === oldSymbol)) return false;
     if (symbol !== oldSymbol && list.items.some(i => i.symbol === symbol)) {
       setNotice({ error: true, text: `${symbol} is already in this list.` });
-      return;
+      return false;
     }
     setLists(ls => ls.map(l => l.id !== listId ? l : {
       ...l,
@@ -126,6 +128,7 @@ export function useWatchlists() {
     setNotice({ error: false, text: `Linked ${oldSymbol} → ${symbol} — scoring…` });
     applyItems(await fetchItems([symbol]));
     setNotice({ error: false, text: `Linked ${oldSymbol} → ${symbol}.` });
+    return true;
   }
 
   // Pull the account's open positions (and, when the Flex query carries them,

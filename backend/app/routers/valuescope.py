@@ -139,3 +139,24 @@ def trades_delete(trade_id: str):
     if not trades_store.delete_trade(trade_id):
         raise api_error(404, "Trade not found.")
     return {"ok": True}
+
+
+class RelinkIn(BaseModel):
+    """Body for re-pointing a trade log at a different symbol — the trade-log
+    counterpart of relinking an unresolved watchlist entry."""
+    from_symbol: str = Field(min_length=1, max_length=12)
+    to_symbol: str = Field(min_length=1, max_length=12)
+
+    @field_validator("from_symbol", "to_symbol")
+    @classmethod
+    def _symbol(cls, v: str) -> str:
+        v = v.strip().upper()
+        if not valid_ticker(v):
+            raise ValueError("invalid ticker")
+        return v
+
+
+@router.post("/trades/relink")
+def trades_relink(body: RelinkIn):
+    count = trades_store.rename_symbol(body.from_symbol, body.to_symbol)
+    return {"count": count}

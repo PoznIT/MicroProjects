@@ -129,6 +129,32 @@ export function buildPerformance(trades, currentPrice = null) {
   };
 }
 
+// Convert every trade into today's split-adjusted share-count terms. The
+// price series from /history is itself split-adjusted (yfinance backs splits
+// out of the whole Close column), so a trade executed before a split needs
+// the same treatment to stay comparable — otherwise a pre-split buy looks
+// like a huge loss (or a pre-reverse-split buy like a huge gain) against
+// today's price, and FIFO-reconstructed share counts fall short of what IBKR
+// actually reports you holding.
+//
+// For each trade, multiply quantity (divide price) by the product of every
+// split whose ex-date falls after the trade — splits before the trade are
+// already reflected in the raw execution. Total cost is preserved exactly
+// (qty*unitCost is invariant under the scaling), so this only reshapes the
+// per-share numbers, never the money.
+export function adjustForSplits(trades, splits) {
+  if (!splits || !splits.length || !trades || !trades.length) return trades || [];
+  const sorted = [...splits].sort((a, b) => a.t.localeCompare(b.t));
+  return trades.map((t) => {
+    let ratio = 1;
+    for (const s of sorted) {
+      if (s.t > t.date) ratio *= Number(s.ratio) || 1;
+    }
+    if (ratio === 1) return t;
+    return { ...t, quantity: t.quantity * ratio, price: t.price / ratio };
+  });
+}
+
 // Chart markers: snap each trade onto the daily close series (latest point at
 // or before the trade date; a trade older than the series clamps to its first
 // point). Marker sits on the price line (v = close); the trade's own price and

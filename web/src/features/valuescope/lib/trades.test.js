@@ -1,7 +1,7 @@
 // Run from web/: node --test src/features/valuescope/lib/trades.test.js
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPerformance, snapToSeries, qtyMismatch } from './trades.js';
+import { adjustForSplits, buildPerformance, snapToSeries, qtyMismatch } from './trades.js';
 
 const buy = (over = {}) => ({
   id: 'b1', date: '2025-01-10', side: 'BUY', quantity: 20, price: 50, commission: 0, ...over,
@@ -138,6 +138,52 @@ test('snapToSeries lands markers on the last close at or before the trade', () =
   assert.equal(sells[0].t, '2025-01-10');
   assert.equal(buys.find((m) => m.id === 'b0').t, '2025-01-06');
   assert.equal(buys.find((m) => m.id === 'b0').date, '2024-12-01'); // real date kept
+});
+
+test('adjustForSplits scales a pre-split buy into today\'s share terms', () => {
+  const trades = [buy({ date: '2020-01-01', quantity: 10, price: 400 })];
+  const splits = [{ t: '2020-08-31', ratio: 4 }]; // AAPL-style 4-for-1
+  const [adjusted] = adjustForSplits(trades, splits);
+  approx(adjusted.quantity, 40);
+  approx(adjusted.price, 100);
+  // total cost (qty * price) is preserved by the scaling
+  approx(adjusted.quantity * adjusted.price, 10 * 400);
+});
+
+test('adjustForSplits stacks multiple splits after the trade', () => {
+  const trades = [buy({ date: '2019-01-01', quantity: 10, price: 400 })];
+  const splits = [
+    { t: '2020-08-31', ratio: 4 },
+    { t: '2022-06-06', ratio: 2 }, // hypothetical later split — cumulative 8x
+  ];
+  const [adjusted] = adjustForSplits(trades, splits);
+  approx(adjusted.quantity, 80);
+  approx(adjusted.price, 50);
+});
+
+test('adjustForSplits ignores splits at or before the trade date', () => {
+  const trades = [buy({ date: '2021-01-01', quantity: 10, price: 100 })];
+  const splits = [{ t: '2020-08-31', ratio: 4 }]; // split already happened
+  const [adjusted] = adjustForSplits(trades, splits);
+  approx(adjusted.quantity, 10);
+  approx(adjusted.price, 100);
+});
+
+test('adjustForSplits leaves trades alone with no split calendar', () => {
+  const trades = [buy()];
+  assert.equal(adjustForSplits(trades, []), trades);
+  assert.equal(adjustForSplits(trades, null), trades);
+});
+
+test('a pre-split buy reads as a real gain once adjusted, not a loss', () => {
+  // 10 sh @ $400 before a 4-for-1 split -> 40 sh @ $100 in today's terms.
+  // Price now $150 should read as a +50% gain, not -62% against the raw $400.
+  const trades = adjustForSplits(
+    [buy({ date: '2020-01-01', quantity: 10, price: 400 })],
+    [{ t: '2020-08-31', ratio: 4 }],
+  );
+  const { openLots } = buildPerformance(trades, 150);
+  approx(openLots[0].unrealizedPct, 0.5);
 });
 
 test('qtyMismatch flags incomplete history but tolerates float noise', () => {

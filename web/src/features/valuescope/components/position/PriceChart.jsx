@@ -158,9 +158,10 @@ export default function PriceChart({ history, trades, currency }) {
       )}
 
       <Typography variant="caption" color="text.disabled" component="p" sx={{ mt: 1 }}>
-        ▲ buys · ▼ sells, snapped to the daily close. Marker prices are your
-        actual fills — they can drift from the line after stock splits (closes
-        are split-adjusted, fills are not).
+        ▲ buys · ▼ sells, snapped to the daily close. Quantities and prices
+        shown here are adjusted for any splits since the trade, to match this
+        split-adjusted price line — the trade log itself keeps your original
+        fill.
       </Typography>
     </Box>
   );

@@ -182,10 +182,23 @@ def main():
     # Drop empty series so the frontend can cleanly mark a metric "no history".
     statements = {k: v for k, v in statements.items() if v}
 
+    # Split calendar — the position page uses this to convert a trade executed
+    # before a split into today's share-count terms, since the Close series
+    # above is itself split-adjusted (yfinance backs out splits from history).
+    splits = []
+    try:
+        for idx, ratio in ticker.splits.items():
+            r = num(ratio)
+            if r:
+                splits.append({"t": ts(idx), "ratio": r})
+    except Exception:
+        pass
+
     print(json.dumps({
         "symbol": symbol,
         "price": price,
         "statements": statements,
+        "splits": splits,
     }))
     return 0
 

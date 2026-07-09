@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { buildPerformance } from '../lib/trades.js';
+import { adjustForSplits, buildPerformance } from '../lib/trades.js';
 
 // Everything the position detail view needs for one symbol: the daily price
 // history (chart backbone + current price), the trade log from the backend
 // store, and the FIFO performance model derived from the two. Also the
 // add/edit/delete mutations — each round-trips to the API then refetches the
 // log, so the server file stays the single source of truth.
+//
+// `trades` stays exactly as stored (what the edit dialog must show/save);
+// `adjustedTrades` is the split-adjusted view used for the performance model
+// and the chart markers, so both line up with the split-adjusted price line.
 export function usePosition(symbol) {
   const [history, setHistory] = useState(null);
   const [historyState, setHistoryState] = useState('loading'); // loading|error|ready
@@ -54,9 +58,13 @@ export function usePosition(symbol) {
   const price = history?.price;
   const currentPrice = price && price.length ? price[price.length - 1].c : null;
 
+  const adjustedTrades = useMemo(
+    () => adjustForSplits(trades, history?.splits),
+    [trades, history],
+  );
   const performance = useMemo(
-    () => buildPerformance(trades, currentPrice),
-    [trades, currentPrice],
+    () => buildPerformance(adjustedTrades, currentPrice),
+    [adjustedTrades, currentPrice],
   );
 
   // One shape for all three mutations: hit the API, surface {error}, refetch.
@@ -89,7 +97,7 @@ export function usePosition(symbol) {
     mutate('/api/valuescope/trades/' + encodeURIComponent(id), { method: 'DELETE' });
 
   return {
-    history, historyState, trades, tradesState, currentPrice,
+    history, historyState, trades, adjustedTrades, tradesState, currentPrice,
     performance, saving, error, setError,
     addTrade, updateTrade, deleteTrade,
   };

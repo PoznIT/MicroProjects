@@ -116,6 +116,27 @@ def delete_trade(trade_id: str) -> bool:
     return True
 
 
+def rename_symbol(old_symbol: str, new_symbol: str) -> int:
+    """Re-point every trade filed under old_symbol to new_symbol — used when a
+    holding gets relinked (e.g. an IBKR symbol Yahoo couldn't resolve, matched
+    to its real listing) so the trade log follows the position instead of
+    being orphaned under the old ticker. Returns how many rows moved."""
+    old_symbol = old_symbol.upper()
+    new_symbol = new_symbol.upper()
+    if old_symbol == new_symbol:
+        return 0
+    count = 0
+    with _LOCK:
+        data = _load()
+        for t in data["trades"]:
+            if t.get("symbol") == old_symbol:
+                t["symbol"] = new_symbol
+                count += 1
+        if count:
+            _save(data)
+    return count
+
+
 def merge_ibkr(trades: list[dict]) -> dict:
     """Fold freshly imported Flex trades into the store, skipping ids we
     already hold or the user explicitly deleted. Returns counts for the UI."""
