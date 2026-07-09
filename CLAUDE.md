@@ -15,7 +15,10 @@ ValueScope `/valuescope`) on a shared stack behind an nginx auth proxy.
   trade log persists via `app/trades_store.py` — lock-guarded JSON file at
   `$VS_DATA_DIR` (`vs-data` volume in compose), `ibkr:`/`manual:` id namespaces,
   delete-tombstones so re-imports dedupe. CRUD at `/api/valuescope/trades`,
-  import via `POST /api/valuescope/ibkr/import`. uvicorn :8000.
+  import via `POST /api/valuescope/ibkr/import` (365-day Flex Web Service) or
+  `POST /api/valuescope/ibkr/import-csv` (a manually-run Flex Query CSV for full
+  history — raw body, parsed by `app/ibkr_csv.py`, deduped by trade ID like the
+  API path). uvicorn :8000.
 - **Frontend** — Vite + React, `web/`. App shell `src/App.jsx` (react-router);
   shared chrome (e.g. `TopBar`) in `src/components/`. One folder per tool in
   `src/features/<tool>/` with a `<Tool>.jsx` entry + `<Tool>.css`; as a tool

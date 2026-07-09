@@ -38,8 +38,12 @@ close).
 Imported trades are stored server-side (the `vs-data` Docker volume) and
 accumulate across imports: each import merges new executions (deduplicated by
 IBKR trade ID) into the existing log, so history older than the report window
-is never lost. A Flex report reaches back at most **365 days** — trades older
-than that can be added by hand on the position page (**Add trade**).
+is never lost. The Flex **Web Service** (the automated **Import from IBKR**
+button) reaches back at most **365 days**. To seed years of older trades in one
+go, export your full history as a CSV and use **Import trades CSV** — see
+[Importing your full trade history (CSV)](#importing-your-full-trade-history-csv-valuescope).
+One-off older trades can also be added by hand on the position page
+(**Add trade**).
 
 You provide two values, `IBKR_FLEX_TOKEN` and `IBKR_FLEX_QUERY_ID`, in `.env`.
 To generate them, sign in to the web **Client Portal**
@@ -91,6 +95,47 @@ Rebuild/restart the `api` service, open ValueScope, and click **Import from
 IBKR** on the Portfolio page (or the bank icon in the watchlist panel). If the
 two variables are left blank the button simply reports that IBKR isn't
 configured.
+
+### Importing your full trade history (CSV) (ValueScope)
+
+The Flex **Web Service** caps its reach at **365 days**, so the automated button
+alone can't backfill older executions. A Flex Query **run manually** in Client
+Portal has no such cap — it can span your account's entire life and be
+downloaded as CSV. **Import trades CSV** on the Portfolio page loads that file.
+
+Because every row carries IBKR's **Trade ID**, the import keys on the same
+`ibkr:<TradeID>` identity the Web Service uses: trades already brought in by the
+API (or a previous CSV), and any you've deleted, are recognised and **not**
+re-imported. So it's safe to import the whole-history CSV even if you've already
+been syncing via the button — you'll only ever add what's genuinely missing.
+
+**1. Make a CSV-format Flex Query with a Trade ID**
+
+You can reuse the query from above (or make a second one). It must have:
+
+- The **Trades** section at the **Executions** level of detail, with at least
+  `Trade ID`, `Trade Date`, `Date/Time`, `Symbol`, `Buy/Sell`, `Quantity`,
+  `Trade Price`, `IB Commission`, `Currency`, `Asset Class`. **`Trade ID` is
+  required** — it's what stops the import from duplicating trades you already
+  have. (Open Positions is ignored by the CSV import; only Trades are read.)
+- Under **Delivery Configuration / General**, set **Format = CSV**.
+
+**2. Run it for your whole history and download the CSV**
+
+1. Go to **Performance & Reports → Flex Queries**.
+2. Click the **Run** (▶) icon next to the query.
+3. Choose a **Custom Date Range** that covers everything — set **From** to (or
+   before) the day you opened the account, **To** to today. (A single run may be
+   limited to a year at a time; if so, run it once per year and import each CSV —
+   the dedup means overlapping ranges are harmless.)
+4. Download the resulting **`.csv`** file.
+
+**3. Import it**
+
+On the Portfolio page click **Import trades CSV** and pick the file. The app
+reports how many new trades it added versus how many were already present. The
+trades land in the server-side log and show up on each symbol's position page
+(entry ▲ / exit ▼ markers and per-trade FIFO returns), exactly like API imports.
 
 > Note: foreign (non-US) listings that Yahoo Finance can't resolve without an
 > exchange suffix are imported but may stay unscored. Any unscored entry shows a

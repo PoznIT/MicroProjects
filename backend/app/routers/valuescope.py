@@ -6,13 +6,18 @@ import re
 from datetime import date as date_type
 from typing import Literal
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel, Field, field_validator
 
-from .. import trades_store
+from .. import ibkr_csv, trades_store
 from ..common import api_error, run_python_tool, valid_query, valid_ticker
 
 router = APIRouter(prefix="/api/valuescope", tags=["valuescope"])
+
+# A full account-history CSV is small (kilobytes per year of trades), but cap
+# the upload so a stray large file can't be buffered unbounded. nginx grants
+# this one endpoint a matching larger client_max_body_size.
+CSV_MAX_BYTES = 5 * 1024 * 1024
 
 # Store ids are namespaced ("ibkr:<flex id>" / "manual:<random>"); anything
 # else in the path is rejected before it reaches the store.
@@ -100,6 +105,34 @@ async def ibkr_import():
         "positions": payload.get("positions") or [],
         "tradesImported": counts["imported"],
         "tradesDuplicate": counts["duplicates"],
+        "tradesTotal": len(trades_store.list_trades()),
+    }
+
+
+@router.post("/ibkr/import-csv")
+async def ibkr_import_csv(request: Request):
+    """Import trades from an IBKR Flex Query Trades CSV — the manual,
+    unlimited-history counterpart to the 365-day Flex Web Service. The CSV text
+    is the raw request body (the browser reads the file). Every row carries an
+    IBKR trade ID, so the merge dedupes against API imports and prior CSV
+    imports and respects delete tombstones — nothing already present re-imports."""
+    raw = await request.body()
+    if len(raw) > CSV_MAX_BYTES:
+        raise api_error(413, "CSV file is too large (limit 5 MB).")
+    if not raw.strip():
+        raise api_error(400, "The uploaded CSV file is empty.")
+
+    text = raw.decode("utf-8-sig", "replace")
+    try:
+        trades = ibkr_csv.parse_trades_csv(text)
+    except ibkr_csv.CsvImportError as exc:
+        raise api_error(400, str(exc))
+
+    counts = trades_store.merge_ibkr(trades)
+    return {
+        "tradesImported": counts["imported"],
+        "tradesDuplicate": counts["duplicates"],
+        "tradesParsed": len(trades),
         "tradesTotal": len(trades_store.list_trades()),
     }
 

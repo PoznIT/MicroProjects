@@ -68,8 +68,9 @@ function PositionsTable({ items, onOpen }) {
 
 export default function PortfolioView() {
   const { watchlists, analysis, openPosition } = useOutletContext();
-  const { importing, importFromIbkr, notice } = watchlists;
+  const { importing, importingCsv, importFromIbkr, importCsv, notice } = watchlists;
   const { inputValue, options, searching, onInput } = analysis;
+  const busy = importing || importingCsv;
 
   const holdings = watchlists.lists.find((l) => l.name === IBKR_LIST_NAME);
   const positions = (holdings?.items || []).filter((it) => it.position);
@@ -100,14 +101,25 @@ export default function PortfolioView() {
       <Box sx={{ width: '100%', maxWidth: 860, mt: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="h6">Portfolio</Typography>
-          <Button
-            size="small"
-            disabled={importing}
-            onClick={importFromIbkr}
-            startIcon={importing ? <CircularProgress size={14} /> : null}
-          >
-            {importing ? 'Importing…' : 'Import from IBKR'}
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              size="small"
+              component="label"
+              disabled={busy}
+              startIcon={importingCsv ? <CircularProgress size={14} /> : null}
+            >
+              {importingCsv ? 'Importing…' : 'Import trades CSV'}
+              <input type="file" accept=".csv,text/csv" hidden onChange={importCsv} />
+            </Button>
+            <Button
+              size="small"
+              disabled={busy}
+              onClick={importFromIbkr}
+              startIcon={importing ? <CircularProgress size={14} /> : null}
+            >
+              {importing ? 'Importing…' : 'Import from IBKR'}
+            </Button>
+          </Box>
         </Box>
 
         {notice && (
@@ -130,7 +142,7 @@ export default function PortfolioView() {
               No positions yet. Import your IBKR holdings to start analyzing
               them trade by trade, or search any ticker above.
             </Typography>
-            <Button variant="contained" disabled={importing} onClick={importFromIbkr}>
+            <Button variant="contained" disabled={busy} onClick={importFromIbkr}>
               Import from IBKR
             </Button>
           </Paper>
