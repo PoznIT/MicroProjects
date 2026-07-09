@@ -10,12 +10,22 @@ ValueScope `/valuescope`) on a shared stack behind an nginx auth proxy.
   `{"error": …}` envelope, and subprocess runner live in `app/common.py`.
   External tools are spawned: `yt-dlp`, and `app/tools/{fetch,search,history}.py`
   (`yfinance`) plus `app/tools/ibkr.py` (IBKR Flex Web Service, stdlib-only;
-  reads `IBKR_FLEX_TOKEN`/`IBKR_FLEX_QUERY_ID` from env). uvicorn :8000.
+  reads `IBKR_FLEX_TOKEN`/`IBKR_FLEX_QUERY_ID` from env; returns open positions
+  + trade executions when the Flex query has a Trades section). ValueScope's
+  trade log persists via `app/trades_store.py` — lock-guarded JSON file at
+  `$VS_DATA_DIR` (`vs-data` volume in compose), `ibkr:`/`manual:` id namespaces,
+  delete-tombstones so re-imports dedupe. CRUD at `/api/valuescope/trades`,
+  import via `POST /api/valuescope/ibkr/import`. uvicorn :8000.
 - **Frontend** — Vite + React, `web/`. App shell `src/App.jsx` (react-router);
   shared chrome (e.g. `TopBar`) in `src/components/`. One folder per tool in
   `src/features/<tool>/` with a `<Tool>.jsx` entry + `<Tool>.css`; as a tool
   grows, put presentational pieces in `components/`, state/fetching in `hooks/`,
-  and pure logic (no React/MUI, so it stays testable/portable) in `lib/`. Theme
+  and pure logic (no React/MUI, so it stays testable/portable) in `lib/`.
+  ValueScope is nested-routed: `ValueScopeLayout.jsx` (owns the single
+  useWatchlists/useAnalysis pair) wraps `PortfolioView` (index) and
+  `PositionDetail` (`position/:symbol` — price chart with trade markers, FIFO
+  per-trade returns from `lib/trades.js`; test with
+  `node --test src/features/valuescope/lib/trades.test.js`). Theme
   tokens in `src/styles/theme.css` (`localStorage` key `mp-theme`). Built static,
   served by nginx (SPA fallback).
 - **Auth** — `infra/auth/` (Node/Express): HMAC `mp_session` cookie, `/login`,
