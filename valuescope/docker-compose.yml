@@ -9,19 +9,23 @@ services:
       retries: 3
       start_period: 10s
 
-  # Unified Python backend (FastAPI) — serves /api/ytaudio, /api/timepunch.
-  # Bundles yt-dlp.
+  # ValueScope backend (FastAPI) — serves /api/valuescope. Bundles yfinance and
+  # the stdlib IBKR Flex client.
   api:
     build: ./backend
     restart: unless-stopped
     env_file: .env
+    # Trade log — accumulates across IBKR imports, must survive container
+    # rebuilds.
+    volumes:
+      - vs-data:/data
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health').status==200 else 1)"]
       interval: 10s
       retries: 3
       start_period: 15s
 
-  # Unified React frontend (Vite build served by nginx).
+  # React frontend (Vite build served by nginx).
   web:
     build: ./web
     restart: unless-stopped
@@ -49,3 +53,6 @@ services:
       web:
         condition: service_started
     restart: unless-stopped
+
+volumes:
+  vs-data:

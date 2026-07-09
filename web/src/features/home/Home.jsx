@@ -1,15 +1,13 @@
 import { Link as RouterLink } from 'react-router-dom';
 import { Box, Typography, Card, CardActionArea, CardContent } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faClock, faMusic, faChartColumn } from '@fortawesome/free-solid-svg-icons';
+import { faClock, faMusic } from '@fortawesome/free-solid-svg-icons';
 
 const TOOLS = [
   { to: '/timepunch', icon: faClock, name: 'TimePunch',
     desc: 'Track work hours with punch in/out. CSV import & export. Weekly balance against a 42h target.' },
   { to: '/ytaudio', icon: faMusic, name: 'YTAudio',
     desc: 'Download the audio track from any YouTube video. Best original quality, or convert to MP3 320k / FLAC.' },
-  { to: '/valuescope', icon: faChartColumn, name: 'ValueScope',
-    desc: 'Pull fundamentals for any ticker and get a color-coded value-investing read with a composite score.' },
 ];
 
 export default function Home() {
