@@ -13,6 +13,7 @@ export function useWatchlists() {
   const [panelOpen, setPanelOpen] = useState(() => localStorage.getItem(LS_PANEL) !== 'false');
   const [refreshing, setRefreshing] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importingCsv, setImportingCsv] = useState(false);
   const [newName, setNewName] = useState('');
   const [notice, setNotice] = useState(null); // { error, text }
   const [editing, setEditing] = useState(null); // { id, name } while renaming a list
@@ -173,6 +174,39 @@ export function useWatchlists() {
     }
   }
 
+  // Import trades from an IBKR Flex Query CSV (the manual, full-history export
+  // that isn't bound by the Flex Web Service's 365-day window). The file is read
+  // client-side and POSTed as the raw body; the server dedupes rows by IBKR
+  // trade ID against API imports and prior CSV imports, so nothing already in
+  // the log re-imports. Trades land in the server-side log and surface on each
+  // symbol's position page — no watchlist rebuild here.
+  async function importCsv(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';                 // allow re-selecting the same file
+    if (!file || importingCsv || importing) return;
+    setImportingCsv(true);
+    setNotice({ error: false, text: `Importing trades from ${file.name}…` });
+    try {
+      const text = await file.text();
+      const r = await fetch('/api/valuescope/ibkr/import-csv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/csv' },
+        body: text,
+      });
+      const j = await r.json();
+      if (!r.ok || j.error) throw new Error(j.error || 'Request failed');
+      const added = j.tradesImported
+        ? `${j.tradesImported} new trade(s) imported`
+        : 'no new trades (all already in your log)';
+      const dup = j.tradesDuplicate ? `, ${j.tradesDuplicate} already present` : '';
+      setNotice({ error: false, text: `CSV: ${added}${dup}. Log now holds ${j.tradesTotal} trade(s).` });
+    } catch (err) {
+      setNotice({ error: true, text: 'CSV import failed — ' + (err.message || 'unknown error.') });
+    } finally {
+      setImportingCsv(false);
+    }
+  }
+
   async function loadSession(e) {
     const file = e.target.files?.[0];
     e.target.value = '';                 // allow re-loading the same file
@@ -195,10 +229,10 @@ export function useWatchlists() {
   }
 
   return {
-    lists, panelOpen, setPanelOpen, refreshing, importing, totalItems,
+    lists, panelOpen, setPanelOpen, refreshing, importing, importingCsv, totalItems,
     newName, setNewName, notice, setNotice, editing, setEditing, menu, setMenu,
     resolving, setResolving,
     createList, deleteList, toggleList, commitRename, moveList, setSort,
-    removeItem, addCurrent, refreshAll, importFromIbkr, resolveItem, loadSession,
+    removeItem, addCurrent, refreshAll, importFromIbkr, importCsv, resolveItem, loadSession,
   };
 }
