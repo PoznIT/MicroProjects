@@ -37,10 +37,16 @@ export function loadLists() {
 
 export const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-// Build a stored watchlist item from a full /metrics response.
+// Build a stored watchlist item from a full /metrics response. The last known
+// price rides along so the portfolio table can value positions without extra
+// requests.
 export function toItem(data) {
   const s = computeScore(data.metrics || {}, data.type);
-  return { symbol: data.symbol, name: data.name, type: data.type, score: s.score, verdict: s.verdict, color: s.color };
+  return {
+    symbol: data.symbol, name: data.name, type: data.type,
+    score: s.score, verdict: s.verdict, color: s.color,
+    price: data.price ?? null,
+  };
 }
 
 // Seed a watchlist item from one IBKR holding, before it's scored. Name/type

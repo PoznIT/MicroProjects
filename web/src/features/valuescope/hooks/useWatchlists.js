@@ -128,16 +128,18 @@ export function useWatchlists() {
     setNotice({ error: false, text: `Linked ${oldSymbol} → ${symbol}.` });
   }
 
-  // Pull the account's open positions from IBKR, (re)build the "IBKR Holdings"
-  // list from them, then score each symbol through the usual metrics pipeline.
-  // fetchItems returns plain scored items (no position), so spreading them over
-  // the seeded holdings keeps each entry's position intact.
+  // Pull the account's open positions (and, when the Flex query carries them,
+  // its executions — merged server-side into the trade log) from IBKR,
+  // (re)build the "IBKR Holdings" list, then score each symbol through the
+  // usual metrics pipeline. fetchItems returns plain scored items (no
+  // position), so spreading them over the seeded holdings keeps each entry's
+  // position intact.
   async function importFromIbkr() {
     if (importing || refreshing) return;
     setImporting(true);
     setNotice({ error: false, text: 'Fetching holdings from IBKR…' });
     try {
-      const r = await fetch('/api/valuescope/ibkr/holdings');
+      const r = await fetch('/api/valuescope/ibkr/import', { method: 'POST' });
       const j = await r.json();
       if (!r.ok || j.error) throw new Error(j.error || 'Request failed');
 
@@ -154,9 +156,13 @@ export function useWatchlists() {
       ]);
 
       const asOf = j.asOf ? ` (as of ${j.asOf})` : '';
-      setNotice({ error: false, text: `Imported ${positions.length} holding(s) from IBKR${asOf} — scoring…` });
+      const trades = j.tradesImported
+        ? `, ${j.tradesImported} new trade(s)`
+        : (j.tradesDuplicate ? ', no new trades' : '');
+      const summary = `Imported ${positions.length} holding(s)${trades} from IBKR${asOf}`;
+      setNotice({ error: false, text: `${summary} — scoring…` });
       applyItems(await fetchItems([...new Set(seeded.map(i => i.symbol))]));
-      setNotice({ error: false, text: `Imported ${positions.length} holding(s) from IBKR${asOf}.` });
+      setNotice({ error: false, text: `${summary}.` });
     } catch (err) {
       setNotice({ error: true, text: 'IBKR import failed — ' + (err.message || 'unknown error.') });
     } finally {

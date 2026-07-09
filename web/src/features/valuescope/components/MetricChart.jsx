@@ -8,7 +8,7 @@ import {
 } from 'recharts';
 import { fmtVal, rate, CHIP_COLOR } from '../lib/score.js';
 import {
-  RANGES, buildSeries, rangeEnabled, defaultRange,
+  RANGES, buildSeries, rangeEnabled, defaultRange, tickDate,
 } from '../lib/history.js';
 
 // Compact axis label — value without the trailing unit noise on the axis.
@@ -16,17 +16,6 @@ function axisFmt(metric, v) {
   if (metric.fmt === '%') return (v * 100).toFixed(0) + '%';
   if (metric.fmt === 'x') return v.toFixed(1);
   return String(v);
-}
-
-function tickDate(t, rangeDays) {
-  const d = new Date(t + 'T00:00:00');
-  if (rangeDays <= 186) {
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  }
-  if (rangeDays <= 1097) {
-    return d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
-  }
-  return String(d.getFullYear());
 }
 
 export default function MetricChart({ metric, history, currentValue }) {
