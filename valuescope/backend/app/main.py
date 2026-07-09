@@ -1,8 +1,9 @@
-"""MicroProjects unified API.
+"""ValueScope API.
 
-A single FastAPI application that mounts one router per tool under /api/<tool>/.
-Shared concerns (validation, error envelopes, subprocess spawning) live in
-app.common and are reused by every router.
+A FastAPI application exposing ValueScope under /api/valuescope/…: fundamental
+metrics, company search, price history, and the position trade log. Shared
+concerns (validation, injection guard, error envelopes, subprocess spawning)
+live in app.common.
 """
 
 from fastapi import FastAPI
@@ -10,12 +11,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .routers import timepunch, ytaudio
+from .routers import valuescope
 
-app = FastAPI(title="MicroProjects API", version="2.0.0")
+app = FastAPI(title="ValueScope API", version="1.0.0")
 
-app.include_router(ytaudio.router)
-app.include_router(timepunch.router)
+app.include_router(valuescope.router)
 
 
 @app.get("/api/health")

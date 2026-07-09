@@ -68,7 +68,7 @@ a { color: inherit; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Centered page shell (Home / ValueScope / YTAudio) ──────── */
+/* ── Centered page shell (Home / YTAudio) ──────────────────── */
 .page {
   min-height: 100vh; display: flex; flex-direction: column;
   align-items: center; padding: 80px 24px 40px;

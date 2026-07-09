@@ -422,6 +422,3 @@ FodyWeavers.xsd
 # build output
 dist/
 web/dist/
-
-# ValueScope trade log (dev runs outside docker — in docker it lives in the vs-data volume)
-backend/data/

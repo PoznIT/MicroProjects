@@ -2,33 +2,19 @@
 
 ## Stack
 
-**MicroProjects** — three tools (TimePunch `/timepunch`, YTAudio `/ytaudio`,
-ValueScope `/valuescope`) on a shared stack behind an nginx auth proxy.
+**MicroProjects** — two tools (TimePunch `/timepunch`, YTAudio `/ytaudio`) on a
+shared stack behind an nginx auth proxy. (ValueScope was extracted into its own
+standalone project and is no longer part of this repo.)
 
 - **Backend** — FastAPI (Python 3.12), `backend/`. One router per tool under
-  `/api/<tool>/…` (`backend/app/routers/`). Shared validation, injection guard,
-  `{"error": …}` envelope, and subprocess runner live in `app/common.py`.
-  External tools are spawned: `yt-dlp`, and `app/tools/{fetch,search,history}.py`
-  (`yfinance`) plus `app/tools/ibkr.py` (IBKR Flex Web Service, stdlib-only;
-  reads `IBKR_FLEX_TOKEN`/`IBKR_FLEX_QUERY_ID` from env; returns open positions
-  + trade executions when the Flex query has a Trades section). ValueScope's
-  trade log persists via `app/trades_store.py` — lock-guarded JSON file at
-  `$VS_DATA_DIR` (`vs-data` volume in compose), `ibkr:`/`manual:` id namespaces,
-  delete-tombstones so re-imports dedupe. CRUD at `/api/valuescope/trades`,
-  import via `POST /api/valuescope/ibkr/import` (365-day Flex Web Service) or
-  `POST /api/valuescope/ibkr/import-csv` (a manually-run Flex Query CSV for full
-  history — raw body, parsed by `app/ibkr_csv.py`, deduped by trade ID like the
-  API path). uvicorn :8000.
+  `/api/<tool>/…` (`backend/app/routers/`). The shared `{"error": …}` envelope
+  and async subprocess runner live in `app/common.py`. External tools are
+  spawned: `yt-dlp`. uvicorn :8000.
 - **Frontend** — Vite + React, `web/`. App shell `src/App.jsx` (react-router);
   shared chrome (e.g. `TopBar`) in `src/components/`. One folder per tool in
   `src/features/<tool>/` with a `<Tool>.jsx` entry + `<Tool>.css`; as a tool
   grows, put presentational pieces in `components/`, state/fetching in `hooks/`,
-  and pure logic (no React/MUI, so it stays testable/portable) in `lib/`.
-  ValueScope is nested-routed: `ValueScopeLayout.jsx` (owns the single
-  useWatchlists/useAnalysis pair) wraps `PortfolioView` (index) and
-  `PositionDetail` (`position/:symbol` — price chart with trade markers, FIFO
-  per-trade returns from `lib/trades.js`; test with
-  `node --test src/features/valuescope/lib/trades.test.js`). Theme
+  and pure logic (no React/MUI, so it stays testable/portable) in `lib/`. Theme
   tokens in `src/styles/theme.css` (`localStorage` key `mp-theme`). Built static,
   served by nginx (SPA fallback).
 - **Auth** — `infra/auth/` (Node/Express): HMAC `mp_session` cookie, `/login`,
@@ -47,7 +33,7 @@ Run: `cp .env.example .env` (set `MP_PASSWORD` + `MP_SECRET`), then
    `git worktree add ../mp-feat-csv-export feat/csv-export`.
 2. **Conventional Commits**: `<type>(<scope>): <summary>`. Types: `feat`, `fix`,
    `chore`, `refactor`, `docs`, `test`, `perf`, `build`, `ci`. Scopes match the
-   stack (`api`, `web`, `auth`, `nginx`, `valuescope`, `ytaudio`, `timepunch`).
+   stack (`api`, `web`, `auth`, `nginx`, `ytaudio`, `timepunch`).
 3. **Done = pushed + PR/MR** opened against `main`:
    ```bash
    git push -u origin <branch>

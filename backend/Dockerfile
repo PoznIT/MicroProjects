@@ -1,8 +1,7 @@
 FROM python:3.12-slim
 
 # yt-dlp needs ffmpeg to convert audio and a JS runtime (deno) for current
-# YouTube extraction; yfinance needs nothing beyond Python. curl/unzip fetch
-# the yt-dlp + deno binaries.
+# YouTube extraction; curl/unzip fetch the yt-dlp + deno binaries.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg ca-certificates curl unzip \
  && rm -rf /var/lib/apt/lists/* \
@@ -25,14 +24,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 
-# Persistent data (ValueScope trade log) — the mount point must exist and be
-# owned by the runtime user before USER drops privileges, because a named
-# volume inherits the image's ownership on first mount.
-ENV VS_DATA_DIR=/data
-RUN mkdir -p /data
-
 # Unprivileged runtime user
-RUN useradd -r -s /usr/sbin/nologin app && chown -R app:app /app /data
+RUN useradd -r -s /usr/sbin/nologin app && chown -R app:app /app
 USER app
 
 EXPOSE 8000
