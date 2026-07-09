@@ -15,6 +15,10 @@ services:
     build: ./backend
     restart: unless-stopped
     env_file: .env
+    # ValueScope trade log — accumulates across IBKR imports, must survive
+    # container rebuilds.
+    volumes:
+      - vs-data:/data
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health').status==200 else 1)"]
       interval: 10s
@@ -49,3 +53,6 @@ services:
       web:
         condition: service_started
     restart: unless-stopped
+
+volumes:
+  vs-data:

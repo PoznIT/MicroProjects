@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Fetch the account's open stock/ETF positions from Interactive Brokers via the
+"""Fetch the account's open stock/ETF positions — and, when the Flex query
+includes the Trades section, its executions — from Interactive Brokers via the
 Flex Web Service.
 
 Usage:   python3 ibkr.py           (takes no arguments)
@@ -22,6 +23,7 @@ watchlist wants — live intraday would need the TWS/IB Gateway API instead.
 Uses the standard library only (urllib + xml.etree) — no extra dependency.
 """
 
+import hashlib
 import json
 import os
 import sys
@@ -163,6 +165,72 @@ def parse_positions(root):
     return as_of, positions
 
 
+def iso_date(raw):
+    """YYYYMMDD → YYYY-MM-DD (Flex date format); anything else passes through."""
+    raw = (raw or "").strip()
+    return f"{raw[0:4]}-{raw[4:6]}-{raw[6:8]}" if len(raw) == 8 and raw.isdigit() else raw
+
+
+def parse_trades(root):
+    """Pull stock/ETF executions out of the statement's Trades section.
+
+    Returns [] when the Flex query doesn't include the section — the caller
+    treats that as "positions-only import", fully backward compatible. Rows:
+      {tradeId, symbol, date, time, side, quantity, price, commission,
+       currency, assetCategory}
+    Sells arrive with negative quantity and commissions arrive negative; both
+    are emitted as positive magnitudes with the sign carried by ``side``.
+    """
+    trades = []
+    for el in root.iter("Trade"):
+        category = (el.get("assetCategory") or "").upper()
+        if category not in ("STK", "ETF"):
+            continue
+        # A query configured with both order- and execution-level rows repeats
+        # each fill; keep executions only, never sum the two.
+        detail = (el.get("levelOfDetail") or "").upper()
+        if detail and detail != "EXECUTION":
+            continue
+        side = (el.get("buySell") or "").upper()
+        if side not in ("BUY", "SELL"):
+            continue  # drops cancel rows like "SELL (Ca.)"
+        symbol = normalize_symbol(el.get("symbol"))
+        qty = num(el.get("quantity"))
+        price = num(el.get("tradePrice"))
+        if not symbol or not qty or price is None:
+            continue
+
+        # dateTime is "YYYYMMDD;HHMMSS" when the query includes Date/Time.
+        date_time = (el.get("dateTime") or "").strip()
+        date = iso_date(el.get("tradeDate") or date_time.split(";")[0])
+        time_part = date_time.split(";")[1] if ";" in date_time else ""
+        if len(time_part) == 6 and time_part.isdigit():
+            time_part = f"{time_part[0:2]}:{time_part[2:4]}:{time_part[4:6]}"
+
+        trade_id = (el.get("tradeID") or "").strip()
+        if not trade_id:
+            # Deterministic fallback so re-imports still dedupe.
+            seed = f"{symbol}|{date_time or date}|{side}|{qty}|{price}"
+            trade_id = hashlib.sha1(seed.encode()).hexdigest()[:16]
+
+        commission = num(el.get("ibCommission"))
+        trades.append({
+            "tradeId": trade_id,
+            "symbol": symbol,
+            "date": date,
+            "time": time_part or None,
+            "side": side,
+            "quantity": abs(qty),
+            "price": price,
+            "commission": abs(commission) if commission is not None else 0,
+            "currency": el.get("currency"),
+            "assetCategory": category,
+        })
+
+    trades.sort(key=lambda t: (t["date"], t["time"] or "", t["tradeId"]))
+    return trades
+
+
 def main():
     token = (os.environ.get("IBKR_FLEX_TOKEN") or "").strip()
     query_id = (os.environ.get("IBKR_FLEX_QUERY_ID") or "").strip()
@@ -175,6 +243,7 @@ def main():
         ref = send_request(token, query_id)
         root = get_statement(token, ref)
         as_of, positions = parse_positions(root)
+        trades = parse_trades(root)
     except urllib.error.URLError as exc:
         print(json.dumps({"error": "Could not reach Interactive Brokers.",
                           "detail": str(exc)[:200]}))
@@ -186,7 +255,7 @@ def main():
         print(json.dumps({"error": str(exc)[:300]}))
         return 1
 
-    print(json.dumps({"asOf": as_of, "positions": positions}))
+    print(json.dumps({"asOf": as_of, "positions": positions, "trades": trades}))
     return 0
 
 
